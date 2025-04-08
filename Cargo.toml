@@ -1,0 +1,38 @@
+[package]
+name = "r-qg"
+version = "0.1.0"
+edition = "2024"
+description = "A flexible grammar-based text generator for producing random syntactically valid text"
+authors = ["Sunny Bains<sunny.bains@pingcap.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/yourusername/grammar-gen"
+keywords = ["grammar", "generator", "syntax", "random", "text"]
+categories = ["text-processing", "parsing", "development-tools::testing"]
+
+[dependencies]
+rand = "0.8.5"
+regex = "1.10.2"
+clap = { version = "4.4.7", features = ["derive"] }
+thiserror = "1.0.50"
+
+[dev-dependencies]
+criterion = "0.5.1"
+pretty_assertions = "1.4.0"
+
+[[bin]]
+name = "grammar-gen"
+path = "src/main.rs"
+
+[lib]
+name = "grammar_gen"
+path = "src/lib.rs"
+
+[[example]]
+name = "sql_generator"
+path = "examples/sql_generator.rs"
+
+[[example]]
+name = "custom_grammar"
+path = "examples/custom_grammar.rs"
+
