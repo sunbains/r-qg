@@ -32,7 +32,7 @@ enum Commands {
         /// Type of grammar to generate
         #[arg(help = "Type of grammar (sql, json, etc.)", default_value = "sql")]
         grammar_type: String,
-        
+
         /// Output file path
         #[arg(help = "Output file path")]
         output: Option<PathBuf>,
@@ -44,20 +44,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(command) = cli.command {
         match command {
-            Commands::Example { grammar_type, output } => {
+            Commands::Example {
+                grammar_type,
+                output,
+            } => {
                 let output_path = output.unwrap_or_else(|| {
                     let filename = format!("example_{}_grammar.txt", grammar_type);
                     PathBuf::from(&filename)
                 });
-                
+
                 match grammar_type.as_str() {
                     "sql" => read_sql_grammar(&output_path)?,
                     _ => {
                         return Err(format!("Unknown grammar type: {}", grammar_type).into());
                     }
                 }
-                
-                println!("Created example {} grammar at: {}", grammar_type, output_path.display());
+
+                println!(
+                    "Created example {} grammar at: {}",
+                    grammar_type,
+                    output_path.display()
+                );
                 return Ok(());
             }
         }
@@ -70,13 +77,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Loading grammar from {}...", grammar_file.display());
     let grammar = Grammar::from_file(&grammar_file, &start_symbol)?;
-    
+
     println!("Loaded {} rules.", grammar.rules().len());
     println!("Generating {} random samples:\n", count);
-    
+
     for i in 0..count {
         let generated = grammar.generate();
-        println!("{}. {}", i+1, generated);
+        println!("{}. {}", i + 1, generated);
     }
 
     Ok(())
@@ -91,4 +98,3 @@ fn read_sql_grammar(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-

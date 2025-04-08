@@ -8,7 +8,7 @@
 //!
 //! ```rust
 //! use grammar_gen::{Grammar, GrammarBuilder};
-//! 
+//!
 //! // Create a simple grammar programmatically
 //! let mut grammar = GrammarBuilder::new("greeting")
 //!     .add_rule("greeting", &["Hello", "<subject>"])
@@ -21,13 +21,12 @@
 //! assert!(text == "Hello world" || text == "Hello Rust programmers");
 //! ```
 
+pub mod common;
 pub mod grammar;
 pub mod utils;
-pub mod common;
 
 pub use grammar::{Grammar, GrammarBuilder, GrammarConfig};
 pub use utils::{GrammarError, Result, SqlNullValidator};
 
 // Re-export common enums and structs
 pub use grammar::{Element, Production};
-
