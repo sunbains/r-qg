@@ -465,31 +465,33 @@ impl Grammar {
             let production_idx = rng.gen_range(0..productions.len());
             let production = &productions[production_idx];
 
-            // Expand all elements in the selected production
+            let add_space = |text: &str, in_quotes: bool, result: &mut String| {
+                if self.config.auto_spacing
+                    && !result.is_empty()
+                    && !result.ends_with(' ')
+                    && !text.starts_with(' ')
+                    && !in_quotes
+                    && !text.starts_with('"')
+                    && !text.starts_with('\'')
+                {
+                    result.push(' ');
+                }
+            };
+
+            let mut in_quotes = false;
             let mut result = String::new();
             for element in &production.elements {
                 match element {
                     Element::Terminal(text) => {
-                        // Add space if needed
-                        if self.config.auto_spacing
-                            && !result.is_empty()
-                            && !result.ends_with(' ')
-                            && !text.starts_with(' ')
-                        {
-                            result.push(' ');
+                        if text.starts_with('"') || text.starts_with('\'') {
+                            in_quotes = !in_quotes;
                         }
+                        add_space(text, in_quotes, &mut result);
                         result.push_str(text);
                     }
                     Element::NonTerminal(name) => {
                         let expanded = self.expand_non_terminal(name, depth + 1);
-                        // Add space if needed
-                        if self.config.auto_spacing
-                            && !result.is_empty()
-                            && !result.ends_with(' ')
-                            && !expanded.starts_with(' ')
-                        {
-                            result.push(' ');
-                        }
+                        add_space(&expanded, in_quotes, &mut result);
                         result.push_str(&expanded);
                     }
                 }
