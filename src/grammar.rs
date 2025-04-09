@@ -453,6 +453,7 @@ impl Grammar {
 
     /// Recursively expand a non-terminal symbol
     fn expand_non_terminal(&self, symbol: &str) -> String {
+        let mut depth = 0;
         let mut rng = rand::thread_rng();
         let mut tokens = Vec::new();
         let mut stack = Vec::new();
@@ -471,8 +472,11 @@ impl Grammar {
                         let production_idx = rng.gen_range(0..productions.len());
                         let production = &productions[production_idx];
 
-                        for element in production.elements.iter().rev() {
-                            stack.push(element.clone());
+                        if depth < self.config.max_recursion_depth {
+                            for element in production.elements.iter().rev() {
+                                stack.push(element.clone());
+                                depth += 1;
+                            }
                         }
                     } else {
                         tokens.push(format!("<{}>", name));
@@ -480,6 +484,8 @@ impl Grammar {
                 }
             }
         }
+
+        println!("tokens: {:?}", tokens);
 
         let mut result = String::new();
         let mut in_quotes = false;
@@ -531,6 +537,49 @@ impl Grammar {
     /// Set the maximum recursion depth
     pub fn set_recursion_depth(&mut self, depth: usize) {
         self.config.max_recursion_depth = depth;
+    }
+
+    /// Print the grammar as a DOT graph
+    pub fn print_graph(&self) {
+        println!("digraph Grammar {{");
+        println!("  rankdir=LR;");
+        println!("  node [shape=box];");
+
+        // Print all non-terminals as nodes
+        for non_terminal in self.rules.keys() {
+            println!("  \"{}\" [label=\"{}\"];", non_terminal, non_terminal);
+        }
+
+        // Print all productions as edges
+        for (non_terminal, productions) in &self.rules {
+            for production in productions {
+                let mut label = String::new();
+                for element in &production.elements {
+                    match element {
+                        Element::Terminal(text) => label.push_str(&format!("{} ", text)),
+                        Element::NonTerminal(name) => {
+                            println!(
+                                "  \"{}\" -> \"{}\" [label=\"{}\"];",
+                                non_terminal,
+                                name,
+                                label.trim()
+                            );
+                            label.clear();
+                        }
+                    }
+                }
+                if !label.is_empty() {
+                    println!(
+                        "  \"{}\" -> \"{}\" [label=\"{}\"];",
+                        non_terminal,
+                        "END",
+                        label.trim()
+                    );
+                }
+            }
+        }
+
+        println!("}}");
     }
 }
 

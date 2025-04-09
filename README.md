@@ -1,10 +1,10 @@
 # Grammar-Gen
 
-[![Crates.io](https://img.shields.io/crates/v/grammar-gen.svg)](https://crates.io/crates/grammar-gen)
-[![Docs.rs](https://docs.rs/grammar-gen/badge.svg)](https://docs.rs/grammar-gen)
+[![Crates.io](https://img.shields.io/crates/v/r-qg.svg)](https://crates.io/crates/grammar-gen)
+[![Docs.rs](https://docs.rs/r-qg/badge.svg)](https://docs.rs/r-qg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Grammar-Gen is a flexible grammar-based text generator for Rust that allows you to generate random, syntactically valid text based on grammar rules. It's especially useful for generating test data, example outputs, and exploring language structures.
+r-qg is a flexible grammar-based text generator for Rust that allows you to generate random, syntactically valid text based on grammar rules. It's especially useful for generating test data, example outputs, and exploring language structures.
 
 ## Features
 
@@ -20,7 +20,7 @@ Grammar-Gen is a flexible grammar-based text generator for Rust that allows you 
 ### Using as a Binary
 
 ```bash
-cargo install grammar-gen
+cargo install r-qg
 ```
 
 ### Adding as a Dependency
@@ -29,7 +29,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-grammar-gen = "0.1.0"
+r-qg = "0.1.0"
 ```
 
 ## Grammar Format
@@ -58,16 +58,16 @@ Multiple productions for a non-terminal are specified by separate rules:
 
 ```bash
 # Generate 5 random SQL queries using the example grammar
-grammar-gen examples/sql_grammar.txt query 5
+r-qg examples/sql_grammar.txt query 5
 
 # Use your own grammar file with a custom start symbol
-grammar-gen path/to/grammar.txt start_symbol [count]
+r-qg path/to/grammar.txt start_symbol [count]
 ```
 
 ### As a Library
 
 ```rust
-use grammar_gen::{Grammar, GrammarConfig};
+use r-qg::{Grammar, GrammarConfig};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load grammar from a file
