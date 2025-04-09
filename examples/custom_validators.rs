@@ -5,7 +5,7 @@ use std::error::Error;
 /// Example of creating and using custom validators
 fn main() -> Result<(), Box<dyn Error>> {
     // Create a simple grammar
-    let grammar = GrammarBuilder::new("expression")
+    let grammar = GrammarBuilder::new()
         .add_rule("expression", &["<term>", "+", "<expression>"])
         .add_rule("expression", &["<term>"])
         .add_rule("term", &["<factor>", "*", "<term>"])
@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("=== Basic Grammar Output ===");
     for i in 1..=5 {
-        println!("{}. {}", i, grammar.generate());
+        println!("{}. {}", i, grammar.generate("expression"));
     }
 
     // Create a custom ParenthesesValidator
@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("\n=== With Custom Validators ===");
     for i in 1..=5 {
-        println!("{}. {}", i, validated_grammar.generate());
+        println!("{}. {}", i, validated_grammar.generate("expression"));
     }
 
     // Create and use a LatexValidator
@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("\n=== LaTeX Formula Output ===");
     for i in 1..=5 {
-        println!("{}. {}", i, latex_grammar.generate());
+        println!("{}. {}", i, latex_grammar.generate("expression"));
     }
 
     Ok(())

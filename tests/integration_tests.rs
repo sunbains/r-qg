@@ -23,14 +23,13 @@ fn test_load_from_file() {
     }
 
     // Test loading the grammar
-    let grammar = Grammar::from_file(test_file, "start").unwrap();
+    let grammar = Grammar::from_file(test_file).unwrap();
 
     // Verify the grammar was loaded correctly
-    assert_eq!(grammar.start_symbol(), "start");
     assert!(grammar.has_non_terminal("subject"));
 
     // Generate some text
-    let result = grammar.generate();
+    let result = grammar.generate("start");
     assert!(result == "Hello world" || result == "Hello Rust");
 
     // Clean up
@@ -40,7 +39,7 @@ fn test_load_from_file() {
 #[test]
 fn test_complex_grammar() {
     // Test a more complex grammar with nested production rules
-    let mut grammar = Grammar::new("expression");
+    let mut grammar = Grammar::new();
 
     // Add non-recursive rules first
     grammar.add_rule("expression", vec!["<term>"]).unwrap();
@@ -65,7 +64,7 @@ fn test_complex_grammar() {
 
     // Generate text - we won't test exact output since it's random,
     // but we'll ensure it doesn't crash and returns something
-    let result = grammar.generate();
+    let result = grammar.generate("expression");
     println!("result: {}", result);
     assert!(!result.is_empty());
 }
@@ -73,7 +72,7 @@ fn test_complex_grammar() {
 #[test]
 fn test_null_handling() {
     // Create a simple SQL grammar with NULL values
-    let mut grammar = GrammarBuilder::new("condition")
+    let mut grammar = GrammarBuilder::new()
         .add_rule("condition", &["<column>", "<operator>", "<value>"])
         .add_rule("condition", &["<column>", "IS", "NULL"])
         .add_rule("column", &["status"])
@@ -89,7 +88,7 @@ fn test_null_handling() {
 
     // Generate multiple samples to increase the chance of testing NULL handling
     for _ in 0..10 {
-        let result = grammar.generate();
+        let result = grammar.generate("condition");
 
         // We should never see "= NULL" in the output, it should be converted to "IS NULL"
         assert!(!result.contains("= NULL"));
@@ -109,11 +108,11 @@ fn test_grammar_config() {
     config.auto_spacing = false;
     config.trim_output = false;
 
-    let mut grammar = Grammar::with_config("test", config);
+    let mut grammar = Grammar::with_config(config);
 
     grammar.add_rule("test", vec!["Hello", "world"]).unwrap();
 
-    let result = grammar.generate();
+    let result = grammar.generate("test");
 
     // Without auto spacing, we should get "Helloworld" (no space)
     assert_eq!(result, "Helloworld");
@@ -123,7 +122,7 @@ fn test_grammar_config() {
     config.auto_spacing = true;
     grammar.set_config(config);
 
-    let result = grammar.generate();
+    let result = grammar.generate("test");
     assert_eq!(result, "Hello world");
 }
 
@@ -141,19 +140,19 @@ fn test_empty_production() {
 #[test]
 fn test_unknown_nonterminal() {
     // Create a grammar with a reference to a non-existent non-terminal
-    let mut grammar = Grammar::new("start");
+    let mut grammar = Grammar::new();
 
     grammar.add_rule("start", vec!["<missing>"]).unwrap();
 
     // Should return the missing non-terminal as <missing>
-    let result = grammar.generate();
+    let result = grammar.generate("start");
     assert!(result.contains("<missing>"));
 }
 
 #[test]
 fn test_complex_joins() {
     // Test complex join scenarios
-    let grammar = GrammarBuilder::new("query")
+    let grammar = GrammarBuilder::new()
         .add_rule(
             "query",
             &["SELECT * FROM", "<table_name>", "<alias>", "<join_clause>"],
@@ -168,7 +167,15 @@ fn test_complex_joins() {
         )
         .add_rule(
             "condition",
-            &["<alias>", ".", "<column_name>", "=", "<alias>", ".", "<column_name>"],
+            &[
+                "<alias>",
+                ".",
+                "<column_name>",
+                "=",
+                "<alias>",
+                ".",
+                "<column_name>",
+            ],
         )
         .add_rule("table_name", &["users"])
         .add_rule("table_name", &["orders"])
@@ -185,7 +192,7 @@ fn test_complex_joins() {
 
     // Generate multiple queries to test different join combinations
     for _ in 0..5 {
-        let query = grammar.generate();
+        let query = grammar.generate("query");
         println!("Generated query: {}", query);
         assert!(
             query.contains("JOIN"),
@@ -204,7 +211,7 @@ fn test_complex_joins() {
 #[test]
 fn test_ctes() {
     // Test Common Table Expressions
-    let grammar = GrammarBuilder::new("query")
+    let grammar = GrammarBuilder::new()
         .add_rule("query", &["WITH", "<cte_list>", "<select_statement>"])
         .add_rule("cte_list", &["<cte>"])
         .add_rule("cte_list", &["<cte>", ",", "<cte_list>"])
@@ -218,7 +225,7 @@ fn test_ctes() {
 
     // Generate multiple CTE queries
     for _ in 0..5 {
-        let query = grammar.generate();
+        let query = grammar.generate("query");
         println!("query: {}", query);
         assert!(query.starts_with("WITH"));
         assert!(query.contains("AS"));
@@ -229,17 +236,34 @@ fn test_ctes() {
 #[test]
 fn test_fts_queries() {
     // Test Full Text Search queries
-    let grammar = GrammarBuilder::new("query")
+    let grammar = GrammarBuilder::new()
         .add_rule(
             "query",
-            &["SELECT", "<select_list>", "FROM", "<table_name>", "WHERE", "<fts_match>", "<fts_options>"],
+            &[
+                "SELECT",
+                "<select_list>",
+                "FROM",
+                "<table_name>",
+                "WHERE",
+                "<fts_match>",
+                "<fts_options>",
+            ],
         )
         .add_rule("select_list", &["*"])
         .add_rule("table_name", &["documents"])
         .add_rule("table_name", &["articles"])
         .add_rule(
             "fts_match",
-            &["MATCH", "(", "<column_list>", ")", "AGAINST", "(", "<fts_term>", "IN BOOLEAN MODE)"],
+            &[
+                "MATCH",
+                "(",
+                "<column_list>",
+                ")",
+                "AGAINST",
+                "(",
+                "<fts_term>",
+                "IN BOOLEAN MODE)",
+            ],
         )
         .add_rule("column_list", &["title", ",", "content"])
         .add_rule("fts_term", &["'", "<fts_boolean_expr>", "'"])
@@ -252,13 +276,24 @@ fn test_fts_queries() {
         .add_rule("fts_options", &["ORDER BY", "<fts_score>", "DESC"])
         .add_rule(
             "fts_score",
-            &["MATCH", "(", "title", ",", "content", ")", "AGAINST", "(", "<fts_term>", ")"],
+            &[
+                "MATCH",
+                "(",
+                "title",
+                ",",
+                "content",
+                ")",
+                "AGAINST",
+                "(",
+                "<fts_term>",
+                ")",
+            ],
         )
         .build();
 
     // Generate multiple FTS queries
     for _ in 0..5 {
-        let query = grammar.generate();
+        let query = grammar.generate("query");
         println!("query: {}", query);
         assert!(query.contains("MATCH"));
         assert!(query.contains("AGAINST"));
@@ -270,13 +305,42 @@ fn test_fts_queries() {
 #[test]
 fn test_complex_fts_with_ctes() {
     // Test combining FTS with CTEs
-    let grammar = GrammarBuilder::new("query")
-        .add_rule("query", &["WITH", "<cte>", "SELECT", "<select_list>", "FROM", "<table_reference>", "WHERE", "<fts_match>"])
-        .add_rule("cte", &["search_results AS (SELECT * FROM documents WHERE MATCH (content) AGAINST ('", "<string>", "' IN BOOLEAN MODE))"])
+    let grammar = GrammarBuilder::new()
+        .add_rule(
+            "query",
+            &[
+                "WITH",
+                "<cte>",
+                "SELECT",
+                "<select_list>",
+                "FROM",
+                "<table_reference>",
+                "WHERE",
+                "<fts_match>",
+            ],
+        )
+        .add_rule(
+            "cte",
+            &[
+                "search_results AS (SELECT * FROM documents WHERE MATCH (content) AGAINST ('",
+                "<string>",
+                "' IN BOOLEAN MODE))",
+            ],
+        )
         .add_rule("select_list", &["*"])
         .add_rule("table_reference", &["search_results sr"])
-        .add_rule("table_reference", &["search_results sr INNER JOIN documents d ON sr.id = d.id"])
-        .add_rule("fts_match", &["MATCH (d.content) AGAINST ('", "<string>", "' IN NATURAL LANGUAGE MODE)"])
+        .add_rule(
+            "table_reference",
+            &["search_results sr INNER JOIN documents d ON sr.id = d.id"],
+        )
+        .add_rule(
+            "fts_match",
+            &[
+                "MATCH (d.content) AGAINST ('",
+                "<string>",
+                "' IN NATURAL LANGUAGE MODE)",
+            ],
+        )
         .add_rule("string", &["database"])
         .add_rule("string", &["search"])
         .add_rule("string", &["query"])
@@ -284,7 +348,7 @@ fn test_complex_fts_with_ctes() {
 
     // Generate complex queries combining FTS and CTEs
     for _ in 0..5 {
-        let query = grammar.generate();
+        let query = grammar.generate("query");
         println!("query: {}", query);
         assert!(query.starts_with("WITH"));
         assert!(query.contains("MATCH"));
@@ -296,21 +360,45 @@ fn test_complex_fts_with_ctes() {
 #[test]
 fn test_fts_with_relevance_scoring() {
     // Test FTS with relevance scoring and complex ordering
-    let grammar = GrammarBuilder::new("query")
-        .add_rule("query", &["SELECT", "<select_list>", "<fts_score>", "AS", "relevance", "FROM", "<table_name>", "WHERE", "<fts_match>", "<order_by>"])
+    let grammar = GrammarBuilder::new()
+        .add_rule(
+            "query",
+            &[
+                "SELECT",
+                "<select_list>",
+                "<fts_score>",
+                "AS",
+                "relevance",
+                "FROM",
+                "<table_name>",
+                "WHERE",
+                "<fts_match>",
+                "<order_by>",
+            ],
+        )
         .add_rule("select_list", &["*"])
         .add_rule("table_name", &["documents"])
-        .add_rule("fts_match", &["MATCH (title, content) AGAINST ('", "<fts_term>", "' IN NATURAL LANGUAGE MODE)"])
+        .add_rule(
+            "fts_match",
+            &[
+                "MATCH (title, content) AGAINST ('",
+                "<fts_term>",
+                "' IN NATURAL LANGUAGE MODE)",
+            ],
+        )
         .add_rule("fts_term", &["<string>"])
         .add_rule("string", &["database"])
         .add_rule("string", &["search"])
-        .add_rule("fts_score", &["MATCH (title, content) AGAINST ('", "<fts_term>", "')"])
+        .add_rule(
+            "fts_score",
+            &["MATCH (title, content) AGAINST ('", "<fts_term>", "')"],
+        )
         .add_rule("order_by", &["ORDER BY relevance DESC, created_at DESC"])
         .build();
 
     // Generate FTS queries with relevance scoring
     for _ in 0..5 {
-        let query = grammar.generate();
+        let query = grammar.generate("query");
         println!("query: {}", query);
         assert!(query.contains("MATCH"));
         assert!(query.contains("AS relevance"));

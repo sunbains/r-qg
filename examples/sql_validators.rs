@@ -17,14 +17,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // 1. Demonstrate SQL NULL value handling
     println!("=== SQL NULL Value Handling ===");
-    let mut grammar =
-        Grammar::from_file(grammar_path, "query")?.with_validator(Box::new(SqlNullValidator));
+    let mut grammar = Grammar::from_file(grammar_path)?.with_validator(Box::new(SqlNullValidator));
 
-    // Set the recursive depth to 4
-    grammar.set_recursion_depth(4);
+    grammar.set_recursion_depth(128);
 
     for i in 1..=3 {
-        let query = grammar.generate();
+        let query = grammar.generate("query");
         println!("{}. {}", i, query);
     }
 
@@ -38,11 +36,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let keyword_validator = SqlKeywordValidator::new(SqlCaseFormat::Uppercase);
     let chained_validator = null_validator.chain(keyword_validator);
 
-    let grammar =
-        Grammar::from_file(grammar_path, "query")?.with_validator(Box::new(chained_validator));
+    let grammar = Grammar::from_file(grammar_path)?.with_validator(Box::new(chained_validator));
 
     for i in 1..=3 {
-        let query = grammar.generate();
+        let query = grammar.generate("query");
         println!("{}. {}", i, query);
     }
 
@@ -63,10 +60,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("\nUsing registry validators:");
     if let Some(validator) = registry.get("custom_sql") {
         let validator = (*validator).clone();
-        let grammar = Grammar::from_file(grammar_path, "query")?.with_validator(validator);
+        let grammar = Grammar::from_file(grammar_path)?.with_validator(validator);
 
         for i in 1..=3 {
-            let query = grammar.generate();
+            let query = grammar.generate("query");
             println!("{}. {}", i, query);
         }
     }
@@ -77,25 +74,26 @@ fn main() -> Result<(), Box<dyn Error>> {
 /// Test different SQL case formatting validators
 fn test_case_formatting(grammar_path: &str) -> Result<(), Box<dyn Error>> {
     // Test uppercase formatting
-    let uppercase_grammar = Grammar::from_file(grammar_path, "query")?
+    let uppercase_grammar = Grammar::from_file(grammar_path)?
         .with_validator(Box::new(SqlKeywordValidator::new(SqlCaseFormat::Uppercase)));
     println!("UPPERCASE keywords:");
-    let query = uppercase_grammar.generate();
+    let query = uppercase_grammar.generate("query");
     println!("{}", query);
 
     // Test lowercase formatting
-    let lowercase_grammar = Grammar::from_file(grammar_path, "query")?
+    let lowercase_grammar = Grammar::from_file(grammar_path)?
         .with_validator(Box::new(SqlKeywordValidator::new(SqlCaseFormat::Lowercase)));
     println!("\nlowercase keywords:");
-    let query = lowercase_grammar.generate();
+    let query = lowercase_grammar.generate("query");
     println!("{}", query);
 
     // Test capitalized formatting
-    let capitalize_grammar = Grammar::from_file(grammar_path, "query")?.with_validator(Box::new(
+    let capitalize_grammar = Grammar::from_file(grammar_path)?.with_validator(Box::new(
         SqlKeywordValidator::new(SqlCaseFormat::Capitalize),
     ));
+
     println!("\nCapitalized keywords:");
-    let query = capitalize_grammar.generate();
+    let query = capitalize_grammar.generate("query");
     println!("{}", query);
 
     Ok(())

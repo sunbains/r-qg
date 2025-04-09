@@ -76,13 +76,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let count = cli.count.unwrap_or(1);
 
     println!("Loading grammar from {}...", grammar_file.display());
-    let grammar = Grammar::from_file(&grammar_file, &start_symbol)?;
+    let grammar = Grammar::from_file(&grammar_file)?;
 
     println!("Loaded {} rules.", grammar.rules().len());
     println!("Generating {} random samples:\n", count);
 
     for i in 0..count {
-        let generated = grammar.generate();
+        let generated = grammar.generate(&start_symbol);
         println!("{}. {}", i + 1, generated);
     }
 

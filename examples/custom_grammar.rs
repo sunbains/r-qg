@@ -4,7 +4,7 @@ use std::error::Error;
 /// Example of creating a custom grammar programmatically
 fn main() -> Result<(), Box<dyn Error>> {
     // Example 1: Create a grammar programmatically using the builder
-    let grammar = GrammarBuilder::new("sentence")
+    let grammar = GrammarBuilder::new()
         .add_rule("sentence", &["<subject>", "<verb>", "<object>"])
         .add_rule("subject", &["The", "<adjective>", "<noun>"])
         .add_rule("subject", &["A", "<adjective>", "<noun>"])
@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Generated sentences using builder approach:");
     for i in 1..=5 {
-        println!("{}. {}", i, grammar.generate());
+        println!("{}. {}", i, grammar.generate("sentence"));
     }
 
     // Example 2: Create a grammar manually
@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     custom_config.auto_spacing = true;
     custom_config.max_recursion_depth = 30;
 
-    let mut grammar = Grammar::with_config("greeting", custom_config);
+    let mut grammar = Grammar::with_config(custom_config);
 
     // Add rules to generate greetings in different languages
     grammar.add_rule("greeting", vec!["<english_greeting>"])?;
@@ -50,12 +50,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("\nGenerated greetings in different languages:");
     for i in 1..=5 {
-        println!("{}. {}", i, grammar.generate());
+        println!("{}. {}", i, grammar.generate("greeting"));
     }
 
     // Example 3: Create a more complex custom grammar
     // Programming language syntax example
-    let mut code_grammar = Grammar::new("program");
+    let mut code_grammar = Grammar::new();
 
     // Set a reasonable recursion limit
     let mut config = GrammarConfig::default();
@@ -115,7 +115,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("\nGenerated code snippets:");
     for i in 1..=3 {
-        println!("Code Example {}:\n{}\n", i, code_grammar.generate());
+        println!(
+            "Code Example {}:\n{}\n",
+            i,
+            code_grammar.generate("program")
+        );
     }
 
     Ok(())

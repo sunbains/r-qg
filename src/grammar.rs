@@ -50,8 +50,6 @@ impl Default for GrammarConfig {
 pub struct Grammar {
     /// The rules mapping non-terminals to productions
     rules: HashMap<String, Vec<Production>>,
-    /// The starting symbol for generation
-    start_symbol: String,
     /// Configuration options
     config: GrammarConfig,
     /// Optional validator for post-processing generated text
@@ -191,7 +189,6 @@ impl<'a> Tokenizer<'a> {
         let mut value = String::new();
         let mut in_quotes = false;
         let mut quote_char = None;
-        let mut is_escaped = false;
 
         // Check if we're starting with a quote
         if let Some(&c) = self.chars.peek() {
@@ -205,19 +202,6 @@ impl<'a> Tokenizer<'a> {
 
         while let Some(&c) = self.chars.peek() {
             match c {
-                c if is_escaped => {
-                    // Add the escaped character literally
-                    value.push(c);
-                    self.current_line.push(c);
-                    self.chars.next();
-                    is_escaped = false;
-                }
-                '\\' => {
-                    // Next character is escaped
-                    is_escaped = true;
-                    self.current_line.push(c);
-                    self.chars.next();
-                }
                 c if in_quotes && Some(c) == quote_char => {
                     self.chars.next();
                     return Ok(Token::Terminal(value));
@@ -350,20 +334,18 @@ impl<'a> Parser<'a> {
 
 impl Grammar {
     /// Create a new empty grammar with a specified start symbol
-    pub fn new(start_symbol: &str) -> Self {
+    pub fn new() -> Self {
         Grammar {
             rules: HashMap::new(),
-            start_symbol: start_symbol.to_string(),
             config: GrammarConfig::default(),
             validator: Box::new(NoopValidator),
         }
     }
 
     /// Create a new grammar with custom configuration
-    pub fn with_config(start_symbol: &str, config: GrammarConfig) -> Self {
+    pub fn with_config(config: GrammarConfig) -> Self {
         Grammar {
             rules: HashMap::new(),
-            start_symbol: start_symbol.to_string(),
             config,
             validator: Box::new(NoopValidator),
         }
@@ -376,10 +358,10 @@ impl Grammar {
     }
 
     /// Parse a grammar from a file
-    pub fn from_file<P: AsRef<Path>>(path: P, start_symbol: &str) -> Result<Self> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file = File::open(path).map_err(GrammarError::Io)?;
         let reader = io::BufReader::new(file);
-        let mut grammar = Grammar::new(start_symbol);
+        let mut grammar = Grammar::new();
 
         let mut current_content = String::new();
         for line in reader.lines() {
@@ -400,13 +382,6 @@ impl Grammar {
             } else {
                 grammar.rules.insert(non_terminal, vec![production]);
             }
-        }
-
-        // Validate that the start symbol exists
-        if !grammar.rules.contains_key(&grammar.start_symbol) {
-            return Err(GrammarError::UnknownNonTerminal(
-                grammar.start_symbol.clone(),
-            ));
         }
 
         Ok(grammar)
@@ -461,9 +436,9 @@ impl Grammar {
     }
 
     /// Generate random text based on the grammar rules
-    pub fn generate(&self) -> String {
+    pub fn generate(&self, start_symbol: &str) -> String {
         // Start generation from the start symbol, with initial depth 0
-        let result = self.expand_non_terminal(&self.start_symbol, 0);
+        let result = self.expand_non_terminal(start_symbol, 0);
 
         // Apply validation/post-processing
         let result = self.validator.validate(&result);
@@ -536,11 +511,6 @@ impl Grammar {
         &self.rules
     }
 
-    /// Get the start symbol
-    pub fn start_symbol(&self) -> &str {
-        &self.start_symbol
-    }
-
     /// Get a reference to the grammar's configuration
     pub fn config(&self) -> &GrammarConfig {
         &self.config
@@ -564,9 +534,9 @@ pub struct GrammarBuilder {
 
 impl GrammarBuilder {
     /// Create a new grammar builder with default config
-    pub fn new(start_symbol: &str) -> Self {
+    pub fn new() -> Self {
         GrammarBuilder {
-            grammar: Grammar::new(start_symbol),
+            grammar: Grammar::new(),
         }
     }
 
@@ -635,7 +605,7 @@ mod tests {
 
     #[test]
     fn test_grammar_generate() {
-        let mut grammar = Grammar::new("start");
+        let mut grammar = Grammar::new();
 
         // Define a simple grammar
         grammar
@@ -645,26 +615,26 @@ mod tests {
         grammar.add_rule("subject", vec!["Rust"]).unwrap();
 
         // Generate some text
-        let result = grammar.generate();
+        let result = grammar.generate("start");
         assert!(result == "Hello world" || result == "Hello Rust");
     }
 
     #[test]
     fn test_grammar_builder() {
-        let grammar = GrammarBuilder::new("greeting")
+        let grammar = GrammarBuilder::new()
             .add_rule("greeting", &["Hello", "<subject>"])
             .add_rule("subject", &["world"])
             .add_rule("subject", &["Rust", "programmer"])
             .validator(noop_validator())
             .build();
 
-        let result = grammar.generate();
+        let result = grammar.generate("greeting");
         assert!(result == "Hello world" || result == "Hello Rust programmer");
     }
 
     #[test]
     fn test_recursion_limit() {
-        let mut grammar = Grammar::new("recursive");
+        let mut grammar = Grammar::new();
         let mut config = GrammarConfig::default();
         config.max_recursion_depth = 5;
         grammar.set_config(config);
@@ -675,7 +645,7 @@ mod tests {
             .unwrap();
 
         // Should hit recursion limit
-        let result = grammar.generate();
+        let result = grammar.generate("recursive");
         assert!(result.contains("recursion_limit_exceeded"));
     }
 }
