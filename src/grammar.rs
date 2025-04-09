@@ -132,6 +132,7 @@ impl<'a> Tokenizer<'a> {
                 break;
             }
             self.chars.next();
+            self.line_number += 1;
         }
     }
 
@@ -150,6 +151,7 @@ impl<'a> Tokenizer<'a> {
             self.chars.next();
 
             if c == '\n' {
+                self.line_number += 1;
                 break;
             }
         }
@@ -189,6 +191,7 @@ impl<'a> Tokenizer<'a> {
         let mut value = String::new();
         let mut in_quotes = false;
         let mut quote_char = None;
+        let mut is_escaped = false;
 
         // Check if we're starting with a quote
         if let Some(&c) = self.chars.peek() {
@@ -202,6 +205,19 @@ impl<'a> Tokenizer<'a> {
 
         while let Some(&c) = self.chars.peek() {
             match c {
+                c if is_escaped => {
+                    // Add the escaped character literally
+                    value.push(c);
+                    self.current_line.push(c);
+                    self.chars.next();
+                    is_escaped = false;
+                }
+                '\\' => {
+                    // Next character is escaped
+                    is_escaped = true;
+                    self.current_line.push(c);
+                    self.chars.next();
+                }
                 c if in_quotes && Some(c) == quote_char => {
                     self.chars.next();
                     return Ok(Token::Terminal(value));
@@ -317,7 +333,6 @@ impl<'a> Parser<'a> {
                 }
                 Token::Comma => {
                     self.advance()?;
-                    continue;
                 }
                 _ => break, // Allow other tokens to end the production
             }
@@ -534,6 +549,11 @@ impl Grammar {
     /// Set a new configuration
     pub fn set_config(&mut self, config: GrammarConfig) {
         self.config = config;
+    }
+
+    /// Set the maximum recursion depth
+    pub fn set_recursion_depth(&mut self, depth: usize) {
+        self.config.max_recursion_depth = depth;
     }
 }
 

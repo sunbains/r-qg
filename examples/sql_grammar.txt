@@ -7,108 +7,108 @@
 <query> ::= [<alter_table>]
 
 # SELECT queries with CTEs and subqueries
-<select_query> ::= [WITH <cte_list> <select_statement>]
+<select_query> ::= ['WITH', <cte_list>, <select_statement>]
 <select_query> ::= [<select_statement>]
 
 <cte_list> ::= [<cte>]
 <cte_list> ::= [<cte>, <cte_list>]
 
-<cte> ::= [<cte_name> AS (<select_statement>)]
+<cte> ::= [<cte_name>, AS, (, <select_statement>, )]
 <cte_name> ::= [temp1]
 <cte_name> ::= [temp2]
 <cte_name> ::= [temp3]
 
-<select_statement> ::= [SELECT <select_list> FROM <table_reference> <where_clause> <group_by> <having_clause> <order_by> <limit_clause>]
+<select_statement> ::= ['SELECT', <select_list>, FROM, <table_reference>, <where_clause>, <group_by>, <having_clause>, <order_by>, <limit_clause>]
 
 <select_list> ::= [*]
 <select_list> ::= [<column_list>]
-<select_list> ::= [<expression> AS <alias>]
+<select_list> ::= [<expression>, AS, <alias>]
 
 <column_list> ::= [<column_reference>]
 <column_list> ::= [<column_reference>, <column_list>]
 
 <table_reference> ::= [<table_name>]
-<table_reference> ::= [<table_name> <alias>]
-<table_reference> ::= [<table_reference> <join_clause>]
-<table_reference> ::= [(<select_statement>) <alias>]
+<table_reference> ::= [<table_name>, <alias>]
+<table_reference> ::= [<table_reference>, <join_clause>]
+<table_reference> ::= [(, <select_statement>, ), <alias>]
 
-<join_clause> ::= [INNER JOIN <table_reference> ON <condition>]
-<join_clause> ::= [LEFT JOIN <table_reference> ON <condition>]
-<join_clause> ::= [RIGHT JOIN <table_reference> ON <condition>]
-<join_clause> ::= [FULL OUTER JOIN <table_reference> ON <condition>]
+<join_clause> ::= [INNER JOIN, <table_reference>, ON, <condition>]
+<join_clause> ::= [LEFT JOIN, <table_reference>, ON, <condition>]
+<join_clause> ::= [RIGHT JOIN, <table_reference>, ON, <condition>]
+<join_clause> ::= [FULL OUTER JOIN, <table_reference>, ON, <condition>]
 
-<where_clause> ::= [WHERE <condition>]
-<where_clause> ::= []
+<where_clause> ::= [WHERE, <condition>]
+#<where_clause> ::= []
 
-<condition> ::= [<column_reference> <operator> <value>]
-<condition> ::= [<column_reference> <operator> (<select_statement>)]
-<condition> ::= [<condition> AND <condition>]
-<condition> ::= [<condition> OR <condition>]
-<condition> ::= [NOT <condition>]
-<condition> ::= [EXISTS (<select_statement>)]
-<condition> ::= [<column_reference> IN (<select_statement>)]
-<condition> ::= [<column_reference> BETWEEN <value> AND <value>]
+<condition> ::= [<column_reference>, <operator>, <value>]
+<condition> ::= [<column_reference>, <operator>, (, <select_statement>, )]
+<condition> ::= [<condition>, AND, <condition>]
+<condition> ::= [<condition>, OR, <condition>]
+<condition> ::= [NOT, <condition>]
+<condition> ::= [EXISTS, (, <select_statement>, )]
+<condition> ::= [<column_reference>, IN, (, <select_statement>, )]
+<condition> ::= [<column_reference>, BETWEEN, <value>, AND, <value>]
 
-<group_by> ::= [GROUP BY <column_list>]
-<group_by> ::= []
+<group_by> ::= [GROUP BY, <column_list>]
+#<group_by> ::= []
 
-<having_clause> ::= [HAVING <condition>]
-<having_clause> ::= []
+<having_clause> ::= [HAVING, <condition>]
+#<having_clause> ::= []
 
-<order_by> ::= [ORDER BY <sort_specification>]
-<order_by> ::= []
+<order_by> ::= [ORDER BY, <sort_specification>]
+#<order_by> ::= []
 
-<sort_specification> ::= [<column_reference> <sort_direction>]
-<sort_specification> ::= [<column_reference> <sort_direction>, <sort_specification>]
+<sort_specification> ::= [<column_reference>, <sort_direction>]
+<sort_specification> ::= [<column_reference>, <sort_direction>, <sort_specification>]
 
 <sort_direction> ::= [ASC]
 <sort_direction> ::= [DESC]
 
-<limit_clause> ::= [LIMIT <number>]
-<limit_clause> ::= [LIMIT <number> OFFSET <number>]
-<limit_clause> ::= []
+<limit_clause> ::= [LIMIT, <number>]
+<limit_clause> ::= [LIMIT, <number>, OFFSET, <number>]
+#<limit_clause> ::= []
 
 # DML statements
-<insert_query> ::= [INSERT INTO <table_name> (<column_list>) VALUES (<value_list>)]
-<insert_query> ::= [INSERT INTO <table_name> (<column_list>) <select_statement>]
+<insert_query> ::= ['INSERT INTO', <table_name>, (, <column_list>, ), VALUES, (, <value_list>, )]
+<insert_query> ::= ['INSERT INTO', <table_name>, (, <column_list>, ), <select_statement>]
 
-<update_query> ::= [UPDATE <table_name> SET <set_clause> <where_clause>]
+<update_query> ::= [UPDATE, <table_name>, SET, <set_clause>, <where_clause>]
 
-<delete_query> ::= [DELETE FROM <table_name> <where_clause>]
+<delete_query> ::= [DELETE FROM, <table_name>, <where_clause>]
 
 # DDL statements
-<create_table> ::= [CREATE TABLE <table_name> (<column_definitions> <constraints>)]
-<create_table> ::= [CREATE TABLE <table_name> AS <select_statement>]
+<create_table> ::= ['CREATE TABLE', <table_name>, (, <column_definitions>, <constraints>, )]
+<create_table> ::= ['CREATE TABLE', <table_name>, AS, <select_statement>]
 
 <column_definitions> ::= [<column_definition>]
 <column_definitions> ::= [<column_definition>, <column_definitions>]
 
-<column_definition> ::= [<column_name> <data_type> <column_constraints>]
+<column_definition> ::= [<column_name>, <data_type>, <column_constraints>]
 
 <data_type> ::= [INTEGER]
-<data_type> ::= [VARCHAR(<number>)]
-<data_type> ::= [CHAR(<number>)]
+<data_type> ::= [VARCHAR, (, <number>, )]
+<data_type> ::= [CHAR, (, <number>, )]
 <data_type> ::= [DATE]
 <data_type> ::= [TIMESTAMP]
-<data_type> ::= [DECIMAL(<number>, <number>)]
+<data_type> ::= [DECIMAL, (, <number>, <number>, )]
 <data_type> ::= [BOOLEAN]
 
-<column_constraints> ::= [PRIMARY KEY]
-<column_constraints> ::= [NOT NULL]
+<column_constraints> ::= ['PRIMARY KEY']
+<column_constraints> ::= ['NOT NULL']
 <column_constraints> ::= [UNIQUE]
-<column_constraints> ::= [DEFAULT <value>]
-<column_constraints> ::= [REFERENCES <table_name>(<column_name>)]
-<column_constraints> ::= []
+<column_constraints> ::= [DEFAULT, <value>]
+<column_constraints> ::= [REFERENCES, <table_name>, (, <column_name>, )]
+#<column_constraints> ::= []
 
-<constraints> ::= [, PRIMARY KEY (<column_list>)]
-<constraints> ::= [, FOREIGN KEY (<column_list>) REFERENCES <table_name>(<column_list>)]
-<constraints> ::= [, UNIQUE (<column_list>)]
-<constraints> ::= []
+<constraints> ::= [ 'PRIMARY KEY', (, <column_list>, )]
+<constraints> ::= [ 'FOREIGN KEY', (, <column_list>, ), REFERENCES, <table_name>, (, <column_list>, )]
+<constraints> ::= [ UNIQUE, (, <column_list>, )]
+#<constraints> ::= []
 
-<alter_table> ::= [ALTER TABLE <table_name> ADD COLUMN <column_definition>]
-<alter_table> ::= [ALTER TABLE <table_name> DROP COLUMN <column_name>]
-<alter_table> ::= [ALTER TABLE <table_name> ADD CONSTRAINT <constraint_name> <constraint_definition>]
-<alter_table> ::= [ALTER TABLE <table_name> DROP CONSTRAINT <constraint_name>]
+<alter_table> ::= [ 'ALTER TABLE', <table_name>, ADD COLUMN, <column_definition>]
+<alter_table> ::= [ 'ALTER TABLE', <table_name>, DROP COLUMN, <column_name>]
+<alter_table> ::= [ 'ALTER TABLE', <table_name>, ADD CONSTRAINT, <constraint_name>, <constraint_definition>]
+<alter_table> ::= [ 'ALTER TABLE', <table_name>, DROP CONSTRAINT, <constraint_name>]
 
 # Terminal values
 <table_name> ::= [users]
@@ -137,19 +137,20 @@
 <alias> ::= [t2]
 <alias> ::= [t3]
 
+# We need to escape <> below.
 <operator> ::= [=]
 <operator> ::= [!=]
-<operator> ::= [>]
-<operator> ::= [<]
-<operator> ::= [>=]
-<operator> ::= [<=]
+<operator> ::= [\>]
+<operator> ::= [\<]
+<operator> ::= [\>=]
+<operator> ::= [\<=]
 <operator> ::= [LIKE]
 <operator> ::= [IN]
-<operator> ::= [NOT IN]
+<operator> ::= [ 'NOT IN' ]
 
 <value> ::= [NULL]
 <value> ::= [<number>]
-<value> ::= ['<string>']
+<value> ::= [\', <string>, \']
 <value> ::= [<boolean>]
 
 <number> ::= [1]
@@ -172,45 +173,45 @@
 # Add FTS and advanced search features after the existing grammar
 
 # Full Text Search
-<fts_query> ::= [SELECT <select_list> FROM <table_name> WHERE <fts_match>]
-<fts_query> ::= [SELECT <select_list> FROM <table_name> WHERE <fts_match> <fts_options>]
+<fts_query> ::= [SELECT, <select_list>, FROM, <table_name>, WHERE, <fts_match>]
+<fts_query> ::= [SELECT, <select_list>, FROM, <table_name>, WHERE, <fts_match>, <fts_options>]
 
-<fts_match> ::= [MATCH (<column_list>) AGAINST (<fts_term>)]
-<fts_match> ::= [MATCH (<column_list>) AGAINST (<fts_term> IN BOOLEAN MODE)]
-<fts_match> ::= [MATCH (<column_list>) AGAINST (<fts_term> IN NATURAL LANGUAGE MODE)]
-<fts_match> ::= [MATCH (<column_list>) AGAINST (<fts_term> WITH QUERY EXPANSION)]
+<fts_match> ::= [MATCH, (, <column_list>, ), AGAINST, (, <fts_term>, )]
+<fts_match> ::= [MATCH, (, <column_list>, ), AGAINST, (, <fts_term>, 'IN BOOLEAN MODE', )]
+<fts_match> ::= [MATCH, (, <column_list>, ), AGAINST, (, <fts_term>, 'IN NATURAL LANGUAGE MODE', )]
+<fts_match> ::= [MATCH, (, <column_list>, ), AGAINST, (, <fts_term>, 'WITH QUERY EXPANSION', )]
 
-<fts_term> ::= ['<string>']
-<fts_term> ::= ['<fts_boolean_expr>']
+<fts_term> ::= [\', <string>, \']
+<fts_term> ::= [\', <fts_boolean_expr>, \']
 
 <fts_boolean_expr> ::= [<fts_term>]
-<fts_boolean_expr> ::= [+<fts_term>]
-<fts_boolean_expr> ::= [-<fts_term>]
-<fts_boolean_expr> ::= [<fts_term> <fts_operator> <fts_term>]
-<fts_boolean_expr> ::= [(<fts_boolean_expr>)]
+<fts_boolean_expr> ::= [+, <fts_term>]
+<fts_boolean_expr> ::= [-, <fts_term>]
+<fts_boolean_expr> ::= [<fts_term>, <fts_operator>, <fts_term>]
+<fts_boolean_expr> ::= [(, <fts_boolean_expr>, )]
 
 <fts_operator> ::= [AND]
 <fts_operator> ::= [OR]
 <fts_operator> ::= [NOT]
 
-<fts_options> ::= [ORDER BY <fts_score> <sort_direction>]
-<fts_options> ::= [ORDER BY <fts_score> <sort_direction>, <column_reference> <sort_direction>]
+<fts_options> ::= [ 'ORDER BY', <fts_score>, <sort_direction>]
+<fts_options> ::= [ 'ORDER BY', <fts_score>, <sort_direction>, <column_reference>, <sort_direction>]
 
-<fts_score> ::= [MATCH (<column_list>) AGAINST (<fts_term>)]
+<fts_score> ::= [MATCH, (, <column_list>, ), AGAINST, (, <fts_term>, )]
 
 # Regular Expression Search
-<regex_query> ::= [SELECT <select_list> FROM <table_name> WHERE <column_reference> REGEXP '<regex_pattern>']
-<regex_query> ::= [SELECT <select_list> FROM <table_name> WHERE <column_reference> NOT REGEXP '<regex_pattern>']
-<regex_query> ::= [SELECT <select_list> FROM <table_name> WHERE <column_reference> LIKE '<pattern>' ESCAPE '<escape_char>']
+<regex_query> ::= [SELECT, <select_list>, FROM, <table_name>, WHERE, <column_reference>, REGEXP, \', <regex_pattern>, \']
+<regex_query> ::= [SELECT, <select_list>, FROM, <table_name>, WHERE, <column_reference>, 'NOT REGEXP', \', <regex_pattern>, \']
+<regex_query> ::= [SELECT, <select_list>, FROM, <table_name>, WHERE, <column_reference>, LIKE, \', <pattern>, \', ESCAPE, \', <escape_char>, \']
 
-<regex_pattern> ::= [^[A-Za-z]+$]
-<regex_pattern> ::= [\d{3}-\d{2}-\d{4}]
-<regex_pattern> ::= [[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}]
-<regex_pattern> ::= [\b\w+\b]
+<regex_pattern> ::= [^\[A-Za-z\]+$]
+<regex_pattern> ::= [\\d{3}-\\d{2}-\\d{4}]
+<regex_pattern> ::= [\[A-Za-z0-9._%+-\]+@\[A-Za-z0-9.-\]+\.\[A-Za-z\]{2}]
+<regex_pattern> ::= [\\b\\w+\\b]
 
 # Soundex and Phonetic Search
-<soundex_query> ::= [SELECT <select_list> FROM <table_name> WHERE SOUNDEX(<column_reference>) = SOUNDEX('<string>')]
-<soundex_query> ::= [SELECT <select_list> FROM <table_name> WHERE DIFFERENCE(<column_reference>, '<string>') > <number>]
+<soundex_query> ::= [SELECT, <select_list>, FROM, <table_name>, 'WHERE SOUNDEX', (, <column_reference>, ), = SOUNDEX, (, \', <string>, \', )]
+<soundex_query> ::= [SELECT, <select_list>, FROM, <table_name>, 'WHERE DIFFERENCE', (, <column_reference>, \', <string>, \', ), \>, <number>]
 
 # Add to existing query rules
 <query> ::= [<fts_query>]
@@ -219,10 +220,10 @@
 
 # Add to existing condition rules
 <condition> ::= [<fts_match>]
-<condition> ::= [<column_reference> REGEXP '<regex_pattern>']
-<condition> ::= [<column_reference> NOT REGEXP '<regex_pattern>']
-<condition> ::= [SOUNDEX(<column_reference>) = SOUNDEX('<string>')]
-<condition> ::= [DIFFERENCE(<column_reference>, '<string>') > <number>]
+<condition> ::= [<column_reference>, REGEXP, \', <regex_pattern>, \']
+<condition> ::= [<column_reference>, 'NOT REGEXP', \', <regex_pattern>, \']
+<condition> ::= [SOUNDEX, (, <column_reference>, ),  = SOUNDEX, (, \', <string>, \', )]
+<condition> ::= [DIFFERENCE, (, <column_reference>, \', <string>, \', ), \>,  <number>]
 
 # Add to existing string values
 <string> ::= [search]
@@ -242,3 +243,30 @@
 <number> ::= [2]
 <number> ::= [3]
 <number> ::= [4]
+
+# Add error handling for missing non-terminals
+<column_reference> ::= [<table_name>, ., <column_name>]
+<column_reference> ::= [<column_name>]
+
+# Add validation rules
+<constraint_name> ::= [pk_, <table_name>]
+<constraint_name> ::= [fk_, <table_name>, _, <column_name>]
+<constraint_name> ::= [uq_, <table_name>, _, <column_name>]
+
+# Add missing SQL features
+<set_clause> ::= [<column_name>, =, <value>]
+<set_clause> ::= [<column_name>, =, <value>, <set_clause>]
+
+<value_list> ::= [<value>]
+<value_list> ::= [<value>, <value_list>]
+
+# Add explicit base cases for recursive rules
+<expression> ::= [<value>]
+<expression> ::= [<column_reference>]
+<expression> ::= [<function_call>]
+
+<function_call> ::= [COUNT, (, *, )]
+<function_call> ::= [SUM, (, <column_reference>, )]
+<function_call> ::= [AVG, (, <column_reference>, )]
+<function_call> ::= [MAX, (, <column_reference>, )]
+<function_call> ::= [MIN, (, <column_reference>, )]
