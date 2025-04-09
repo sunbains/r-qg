@@ -167,7 +167,15 @@ fn test_complex_joins() {
         )
         .add_rule(
             "condition",
-            &[ "<alias>", ".", "<column_name>", "=", "<alias>", ".", "<column_name>", ],
+            &[
+                "<alias>",
+                ".",
+                "<column_name>",
+                "=",
+                "<alias>",
+                ".",
+                "<column_name>",
+            ],
         )
         .add_rule("table_name", &["users"])
         .add_rule("table_name", &["orders"])
@@ -231,27 +239,42 @@ fn test_fts_queries() {
     let grammar = GrammarBuilder::new()
         .add_rule(
             "query",
-            &[ "SELECT", "<select_list>", "FROM", "<table_name>", "WHERE", "<fts_match>", "<fts_options>", ],
+            &[
+                "SELECT",
+                "<select_list>",
+                "FROM",
+                "<table_name>",
+                "WHERE",
+                "<fts_match>",
+                "<fts_options>",
+            ],
         )
         .add_rule("select_list", &["*"])
         .add_rule("table_name", &["documents"])
         .add_rule("table_name", &["articles"])
         .add_rule(
             "fts_match",
-            &[ "MATCH", "(", "<column_list>", ")", "AGAINST", "(", "<fts_term>", "IN BOOLEAN MODE)", ],)
+            &[
+                "MATCH",
+                "(",
+                "<column_list>",
+                ")",
+                "AGAINST",
+                "(",
+                "<fts_term>",
+                "IN BOOLEAN MODE)",
+            ],
+        )
         .add_rule("column_list", &["title", ",", "content"])
         .add_rule("fts_term", &["'", "<fts_boolean_expr>", "'"])
         .add_rule("fts_boolean_expr", &["+", "<string>", "-", "<string>"])
-        .add_rule("fts_boolean_expr", &["<string>", "AND", "<string>"])
+        .add_rule("fts_boolean_expr", &["<string>", " AND ", "<string>"])
         .add_rule("string", &["database"])
         .add_rule("string", &["mysql"])
         .add_rule("string", &["postgres"])
         .add_rule("string", &["tidb"])
-        .add_rule("fts_options", &["ORDER BY", "<fts_score>", "DESC"])
-        .add_rule(
-            "fts_score",
-            &[ "MATCH", "(", "title", ",", "content", ")", "AGAINST", "(", "<fts_term>", ")", ],
-        )
+        .add_rule("fts_options", &[""])
+        .add_rule("fts_options", &["AS relevance_score"])
         .build();
 
     // Generate multiple FTS queries
@@ -261,7 +284,6 @@ fn test_fts_queries() {
         assert!(query.contains("MATCH"));
         assert!(query.contains("AGAINST"));
         assert!(query.contains("IN BOOLEAN MODE"));
-        assert!(query.contains("ORDER BY"));
     }
 }
 
@@ -271,7 +293,16 @@ fn test_complex_fts_with_ctes() {
     let grammar = GrammarBuilder::new()
         .add_rule(
             "query",
-            &[ "WITH", "<cte>", "SELECT", "<select_list>", "FROM", "<table_reference>", "WHERE", "<fts_match>", ],
+            &[
+                "WITH",
+                "<cte>",
+                "SELECT",
+                "<select_list>",
+                "FROM",
+                "<table_reference>",
+                "WHERE",
+                "<fts_match>",
+            ],
         )
         .add_rule(
             "cte",

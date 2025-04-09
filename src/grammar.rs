@@ -438,7 +438,7 @@ impl Grammar {
     /// Generate random text based on the grammar rules
     pub fn generate(&self, start_symbol: &str) -> String {
         // Start generation from the start symbol, with initial depth 0
-        let result = self.expand_non_terminal(start_symbol, 0);
+        let result = self.expand_non_terminal(start_symbol);
 
         // Apply validation/post-processing
         let result = self.validator.validate(&result);
@@ -452,55 +452,60 @@ impl Grammar {
     }
 
     /// Recursively expand a non-terminal symbol
-    fn expand_non_terminal(&self, symbol: &str, depth: usize) -> String {
-        // Prevent excessive recursion
-        if depth >= self.config.max_recursion_depth {
-            return format!("<recursion_limit_exceeded:{}>", symbol);
-        }
-
+    fn expand_non_terminal(&self, symbol: &str) -> String {
         let mut rng = rand::thread_rng();
+        let mut tokens = Vec::new();
+        let mut stack = Vec::new();
 
-        if let Some(productions) = self.rules.get(symbol) {
-            // Randomly select one of the productions
-            let production_idx = rng.gen_range(0..productions.len());
-            let production = &productions[production_idx];
+        stack.push(Element::NonTerminal(symbol.to_string()));
 
-            let add_space = |text: &str, in_quotes: bool, result: &mut String| {
-                if self.config.auto_spacing
-                    && !result.is_empty()
-                    && !result.ends_with(' ')
-                    && !text.starts_with(' ')
-                    && !in_quotes
-                    && !text.starts_with('"')
-                    && !text.starts_with('\'')
-                {
-                    result.push(' ');
+        while !stack.is_empty() {
+            let element = stack.pop().unwrap();
+
+            match element {
+                Element::Terminal(text) => {
+                    tokens.push(text);
                 }
-            };
+                Element::NonTerminal(name) => {
+                    if let Some(productions) = self.rules.get(&name) {
+                        let production_idx = rng.gen_range(0..productions.len());
+                        let production = &productions[production_idx];
 
-            let mut in_quotes = false;
-            let mut result = String::new();
-            for element in &production.elements {
-                match element {
-                    Element::Terminal(text) => {
-                        if text.starts_with('"') || text.starts_with('\'') {
-                            in_quotes = !in_quotes;
+                        for element in production.elements.iter().rev() {
+                            stack.push(element.clone());
                         }
-                        add_space(text, in_quotes, &mut result);
-                        result.push_str(text);
-                    }
-                    Element::NonTerminal(name) => {
-                        let expanded = self.expand_non_terminal(name, depth + 1);
-                        add_space(&expanded, in_quotes, &mut result);
-                        result.push_str(&expanded);
+                    } else {
+                        tokens.push(format!("<{}>", name));
                     }
                 }
             }
-            result
-        } else {
-            // Unknown non-terminal, return it as is (for debugging)
-            format!("<{}>", symbol)
         }
+
+        let mut result = String::new();
+        let mut in_quotes = false;
+
+        for (i, token) in tokens.iter().enumerate() {
+            if i > 0 {
+                let prev = &tokens[i - 1];
+                if !in_quotes
+                    && !prev.ends_with('(')
+                    && !token.starts_with(')')
+                    && !token.starts_with(',')
+                    && !prev.ends_with(',')
+                {
+                    result.push(' ');
+                }
+            }
+            if token == "\"" || token == "'" {
+                in_quotes = !in_quotes;
+            }
+            result.push_str(token);
+            if token == "," && !in_quotes {
+                result.push(' ');
+            }
+        }
+
+        result.trim().to_string()
     }
 
     /// Check if the grammar contains a specific non-terminal
