@@ -64,6 +64,7 @@ enum Token {
     RuleSeparator, // ::=
     ListStart,     // [
     ListEnd,       // ]
+    Quote,         // '
     Comma,         // ,
     EndOfFile,
 }
@@ -113,6 +114,11 @@ impl<'a> Tokenizer<'a> {
             Some(&']') => {
                 self.chars.next();
                 Ok(Token::ListEnd)
+            }
+            Some(&'\\') => {
+                self.chars.next();
+                self.chars.next();
+                Ok(Token::Quote)
             }
             Some(&',') => {
                 self.chars.next();
@@ -194,7 +200,7 @@ impl<'a> Tokenizer<'a> {
 
         // Check if we're starting with a quote
         if let Some(&c) = self.chars.peek() {
-            if c == '"' || c == '\'' {
+            if c == '"' || c == '\''  {
                 in_quotes = true;
                 quote_char = Some(c);
                 self.current_line.push(c);
@@ -318,6 +324,10 @@ impl<'a> Parser<'a> {
                     self.advance()?;
                 }
                 Token::Comma => {
+                    self.advance()?;
+                }
+                Token::Quote => {
+                    elements.push(Element::Terminal("'".to_string()));
                     self.advance()?;
                 }
                 _ => break, // Allow other tokens to end the production
