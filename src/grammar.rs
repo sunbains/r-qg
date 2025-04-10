@@ -200,7 +200,7 @@ impl<'a> Tokenizer<'a> {
 
         // Check if we're starting with a quote
         if let Some(&c) = self.chars.peek() {
-            if c == '"' || c == '\''  {
+            if c == '"' || c == '\'' {
                 in_quotes = true;
                 quote_char = Some(c);
                 self.current_line.push(c);
@@ -718,5 +718,60 @@ mod tests {
         let result = grammar.generate("recursive");
         println!("result: {}", result);
         assert!(result.contains("recursion_limit_exceeded"));
+    }
+
+    #[test]
+    fn test_tokenizer() {
+        let input = r#"<rule> ::= [Terminal, <non_terminal>, "quoted text"]"#;
+        let mut tokenizer = Tokenizer::new(input);
+
+        assert_eq!(
+            tokenizer.next_token().unwrap(),
+            Token::NonTerminal("rule".to_string())
+        );
+        assert_eq!(tokenizer.next_token().unwrap(), Token::RuleSeparator);
+        assert_eq!(tokenizer.next_token().unwrap(), Token::ListStart);
+        assert_eq!(
+            tokenizer.next_token().unwrap(),
+            Token::Terminal("Terminal".to_string())
+        );
+        assert_eq!(tokenizer.next_token().unwrap(), Token::Comma);
+        assert_eq!(
+            tokenizer.next_token().unwrap(),
+            Token::NonTerminal("non_terminal".to_string())
+        );
+        assert_eq!(tokenizer.next_token().unwrap(), Token::Comma);
+        assert_eq!(
+            tokenizer.next_token().unwrap(),
+            Token::Terminal("quoted text".to_string())
+        );
+        assert_eq!(tokenizer.next_token().unwrap(), Token::ListEnd);
+        assert_eq!(tokenizer.next_token().unwrap(), Token::EndOfFile);
+    }
+
+    #[test]
+    fn test_parser() {
+        let input = r#"<rule> ::= [Terminal, <non_terminal>, "quoted text"]"#;
+        let mut parser = Parser::new(input).unwrap();
+
+        let (non_terminal, production) = parser.parse_rule().unwrap();
+
+        assert_eq!(non_terminal, "rule");
+        assert_eq!(production.elements.len(), 3);
+
+        match &production.elements[0] {
+            Element::Terminal(s) => assert_eq!(s, "Terminal"),
+            _ => panic!("Expected Terminal"),
+        }
+
+        match &production.elements[1] {
+            Element::NonTerminal(s) => assert_eq!(s, "non_terminal"),
+            _ => panic!("Expected NonTerminal"),
+        }
+
+        match &production.elements[2] {
+            Element::Terminal(s) => assert_eq!(s, "quoted text"),
+            _ => panic!("Expected Terminal"),
+        }
     }
 }

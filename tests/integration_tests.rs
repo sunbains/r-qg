@@ -168,7 +168,15 @@ fn test_complex_joins() {
         )
         .add_rule(
             "condition",
-            &[ "<alias>", ".", "<column_name>", "=", "<alias>", ".", "<column_name>", ],
+            &[
+                "<alias>",
+                ".",
+                "<column_name>",
+                "=",
+                "<alias>",
+                ".",
+                "<column_name>",
+            ],
         )
         .add_rule("table_name", &["users"])
         .add_rule("table_name", &["orders"])
@@ -232,14 +240,31 @@ fn test_fts_queries() {
     let grammar = GrammarBuilder::new()
         .add_rule(
             "query",
-            &[ "SELECT", "<select_list>", "FROM", "<table_name>", "WHERE", "<fts_match>", "<fts_options>", ],
+            &[
+                "SELECT",
+                "<select_list>",
+                "FROM",
+                "<table_name>",
+                "WHERE",
+                "<fts_match>",
+                "<fts_options>",
+            ],
         )
         .add_rule("select_list", &["*"])
         .add_rule("table_name", &["documents"])
         .add_rule("table_name", &["articles"])
         .add_rule(
             "fts_match",
-            &[ "MATCH", "(", "<column_list>", ")", "AGAINST", "(", "<fts_term>", "IN BOOLEAN MODE)", ],
+            &[
+                "MATCH",
+                "(",
+                "<column_list>",
+                ")",
+                "AGAINST",
+                "(",
+                "<fts_term>",
+                "IN BOOLEAN MODE)",
+            ],
         )
         .add_rule("column_list", &["title", ",", "content"])
         .add_rule("fts_term", &["'", "<fts_boolean_expr>", "'"])
@@ -269,7 +294,16 @@ fn test_complex_fts_with_ctes() {
     let grammar = GrammarBuilder::new()
         .add_rule(
             "query",
-            &[ "WITH", "<cte>", "SELECT", "<select_list>", "FROM", "<table_reference>", "WHERE", "<fts_match>", ],
+            &[
+                "WITH",
+                "<cte>",
+                "SELECT",
+                "<select_list>",
+                "FROM",
+                "<table_reference>",
+                "WHERE",
+                "<fts_match>",
+            ],
         )
         .add_rule(
             "cte",
@@ -287,7 +321,11 @@ fn test_complex_fts_with_ctes() {
         )
         .add_rule(
             "fts_match",
-            &[ "MATCH (d.content) AGAINST ('", "<string>", "' IN NATURAL LANGUAGE MODE)", ],
+            &[
+                "MATCH (d.content) AGAINST ('",
+                "<string>",
+                "' IN NATURAL LANGUAGE MODE)",
+            ],
         )
         .add_rule("string", &["database"])
         .add_rule("string", &["search"])
@@ -311,13 +349,28 @@ fn test_fts_with_relevance_scoring() {
     let grammar = GrammarBuilder::new()
         .add_rule(
             "query",
-            &[ "SELECT", "<select_list>", "<fts_score>", "AS", "relevance", "FROM", "<table_name>", "WHERE", "<fts_match>", "<order_by>", ],
+            &[
+                "SELECT",
+                "<select_list>",
+                "<fts_score>",
+                "AS",
+                "relevance",
+                "FROM",
+                "<table_name>",
+                "WHERE",
+                "<fts_match>",
+                "<order_by>",
+            ],
         )
         .add_rule("select_list", &["*"])
         .add_rule("table_name", &["documents"])
         .add_rule(
             "fts_match",
-            &[ "MATCH (title, content) AGAINST ('", "<fts_term>", "' IN NATURAL LANGUAGE MODE)", ],
+            &[
+                "MATCH (title, content) AGAINST ('",
+                "<fts_term>",
+                "' IN NATURAL LANGUAGE MODE)",
+            ],
         )
         .add_rule("fts_term", &["<string>"])
         .add_rule("string", &["database"])
