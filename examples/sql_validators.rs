@@ -16,11 +16,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // 1. Demonstrate SQL NULL value handling
-    println!("=== SQL NULL Value Handling ===");
+    println!("=== Load the SQL grammar ===");
     let mut grammar = Grammar::from_file(grammar_path)?.with_validator(Box::new(SqlNullValidator));
 
     grammar.set_recursion_depth(128);
 
+    println!("=== SQL NULL Value Handling ===");
     for i in 1..=3 {
         let query = grammar.generate("query");
         println!("{}. {}", i, query);

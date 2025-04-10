@@ -136,6 +136,9 @@ impl<'a> Tokenizer<'a> {
 
     fn skip_whitespace(&mut self) {
         while let Some(&c) = self.chars.peek() {
+            if c == '\n' {
+                self.line_number += 1;
+            }
             if c.is_whitespace() || c == '\n' {
                 self.chars.next();
             } else {
@@ -147,9 +150,7 @@ impl<'a> Tokenizer<'a> {
     fn skip_to_end_of_line(&mut self) {
         while let Some(&c) = self.chars.peek() {
             self.chars.next();
-
             if c == '\n' {
-                self.line_number += 1;
                 break;
             }
         }
@@ -159,6 +160,7 @@ impl<'a> Tokenizer<'a> {
         while let Some(&c) = self.chars.peek() {
             if c == '#' {
                 self.skip_to_end_of_line();
+                self.line_number += 1;
             } else {
                 break;
             }
@@ -485,7 +487,9 @@ impl Grammar {
             }
         }
 
-        println!("tokens: {:?}", tokens);
+        if depth >= self.config.max_recursion_depth {
+            tokens.push(format!("<recursion_limit_exceeded>"));
+        }
 
         let mut result = String::new();
         let mut in_quotes = false;
@@ -702,6 +706,7 @@ mod tests {
 
         // Should hit recursion limit
         let result = grammar.generate("recursive");
+        println!("result: {}", result);
         assert!(result.contains("recursion_limit_exceeded"));
     }
 }

@@ -139,11 +139,11 @@
 
 # We need to escape <> below.
 <operator> ::= [=]
-<operator> ::= [!=]
-<operator> ::= [\>]
-<operator> ::= [\<]
-<operator> ::= [\>=]
-<operator> ::= [\<=]
+<operator> ::= ['!=']
+<operator> ::= ['>']
+<operator> ::= ['<']
+<operator> ::= ['>=']
+<operator> ::= ['<=']
 <operator> ::= [LIKE]
 <operator> ::= [IN]
 <operator> ::= [ 'NOT IN' ]
@@ -204,14 +204,14 @@
 <regex_query> ::= [SELECT, <select_list>, FROM, <table_name>, WHERE, <column_reference>, 'NOT REGEXP', \', <regex_pattern>, \']
 <regex_query> ::= [SELECT, <select_list>, FROM, <table_name>, WHERE, <column_reference>, LIKE, \', <pattern>, \', ESCAPE, \', <escape_char>, \']
 
-<regex_pattern> ::= [^\[A-Za-z\]+$]
-<regex_pattern> ::= [\\d{3}-\\d{2}-\\d{4}]
-<regex_pattern> ::= [\[A-Za-z0-9._%+-\]+@\[A-Za-z0-9.-\]+\.\[A-Za-z\]{2}]
-<regex_pattern> ::= [\\b\\w+\\b]
+<regex_pattern> ::= ['^[A-Za-z]+$']
+<regex_pattern> ::= ['\d{3}-\d{2}-\d{4}']
+<regex_pattern> ::= ['[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+.[A-Za-z]{2}']
+<regex_pattern> ::= ['\b\w+\b']
 
 # Soundex and Phonetic Search
-<soundex_query> ::= [SELECT, <select_list>, FROM, <table_name>, 'WHERE SOUNDEX', (, <column_reference>, ), = SOUNDEX, (, \', <string>, \', )]
-<soundex_query> ::= [SELECT, <select_list>, FROM, <table_name>, 'WHERE DIFFERENCE', (, <column_reference>, \', <string>, \', ), \>, <number>]
+<soundex_query> ::= [SELECT, <select_list>, FROM, <table_name>, 'WHERE SOUNDEX', (, <column_reference>, ),'= SOUNDEX', (, \', <string>, \', )]
+<soundex_query> ::= [SELECT, <select_list>, FROM, <table_name>, 'WHERE DIFFERENCE', (, <column_reference>, \', <string>, \', ), '>', <number>]
 
 # Add to existing query rules
 <query> ::= [<fts_query>]
@@ -222,8 +222,8 @@
 <condition> ::= [<fts_match>]
 <condition> ::= [<column_reference>, REGEXP, \', <regex_pattern>, \']
 <condition> ::= [<column_reference>, 'NOT REGEXP', \', <regex_pattern>, \']
-<condition> ::= [SOUNDEX, (, <column_reference>, ),  = SOUNDEX, (, \', <string>, \', )]
-<condition> ::= [DIFFERENCE, (, <column_reference>, \', <string>, \', ), \>,  <number>]
+<condition> ::= [SOUNDEX, (, <column_reference>, ),  '= SOUNDEX', (, \', <string>, \', )]
+<condition> ::= [DIFFERENCE, (, <column_reference>, \', <string>, \', ), '>',  <number>]
 
 # Add to existing string values
 <string> ::= [search]
