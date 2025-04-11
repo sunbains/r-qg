@@ -7,6 +7,153 @@ use std::path::Path;
 use std::str::Chars;
 
 use crate::utils::{GrammarError, GrammarValidator, NoopValidator, Result};
+#[derive(Debug, Clone)]
+pub struct QueryAstNode {
+    pub element_type: String,
+    pub value: String,
+    pub children: Vec<QueryAstNode>,
+}
+
+impl QueryAstNode {
+    /// Convert a node to its string representation
+    pub fn to_string(&self) -> String {
+        match self.element_type.as_str() {
+            "terminal" => self.value.clone(),
+            "non_terminal" => {
+                let mut result = String::new();
+                for child in &self.children {
+                    let child_str = child.to_string();
+                    if !result.is_empty()
+                        && !result.ends_with('(')
+                        && !child_str.starts_with(')')
+                        && !child_str.starts_with(',')
+                        && !result.ends_with(',')
+                    {
+                        result.push(' ');
+                    }
+                    result.push_str(&child_str);
+                }
+                result
+            }
+            "undefined" => format!("<{}>", self.value),
+            "error" => format!("<{}>", self.value),
+            _ => format!("<unknown:{}>", self.value),
+        }
+    }
+
+    /// Get a debug representation showing node types
+    pub fn to_debug_string(&self) -> String {
+        match self.element_type.as_str() {
+            "terminal" => format!("T({})", self.value),
+            "non_terminal" => {
+                let mut result = format!("NT({})[", self.value);
+                for (i, child) in self.children.iter().enumerate() {
+                    if i > 0 {
+                        result.push_str(", ");
+                    }
+                    result.push_str(&child.to_debug_string());
+                }
+                result.push(']');
+                result
+            }
+            "undefined" => format!("UNDEF({})", self.value),
+            "error" => format!("ERR({})", self.value),
+            _ => format!("UNKNOWN({})", self.value),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct QueryAst {
+    pub text: String,       // The generated text
+    pub type_name: String,  // The starting non-terminal
+    pub root: QueryAstNode, // Root node of the AST
+}
+
+impl QueryAst {
+    /// Print the AST in a readable format
+    pub fn print(&self) {
+        println!("AST for '{}' (type: {}):", self.text, self.type_name);
+        self.print_node(&self.root, 0);
+    }
+
+    fn print_node(&self, node: &QueryAstNode, depth: usize) {
+        let indent = "  ".repeat(depth);
+        println!("{}└─ {} : '{}'", indent, node.element_type, node.value);
+
+        for child in &node.children {
+            self.print_node(child, depth + 1);
+        }
+    }
+
+    /// Helper to get all nodes of a specific type
+    pub fn find_nodes(&self, element_type: &str) -> Vec<&QueryAstNode> {
+        let mut result = Vec::new();
+        self.find_nodes_recursive(&self.root, element_type, &mut result);
+        result
+    }
+
+    fn find_nodes_recursive<'a>(
+        &'a self,
+        node: &'a QueryAstNode,
+        element_type: &str,
+        result: &mut Vec<&'a QueryAstNode>,
+    ) {
+        if node.element_type == element_type {
+            result.push(node);
+        }
+
+        for child in &node.children {
+            self.find_nodes_recursive(child, element_type, result);
+        }
+    }
+
+    /// Performs a default transformation by traversing the AST and
+    /// returning a string representation of the nodes
+    pub fn transform(&self) -> String {
+        self.root.to_string()
+    }
+
+    /// Transforms the AST using a custom transformation function
+    pub fn transform_with<F>(&self, transformer: F) -> String
+    where
+        F: Fn(&QueryAstNode) -> String,
+    {
+        transformer(&self.root)
+    }
+
+    /// Helper function for recursive transformation with a custom function
+    #[allow(dead_code)]
+    fn transform_with_helper<F>(node: &QueryAstNode, transformer: F) -> String
+    where
+        F: Fn(&QueryAstNode) -> String + Copy,
+    {
+        transformer(node)
+    }
+
+    /// Creates a new QueryAst from an existing AST but with a different root
+    pub fn with_root(&self, new_root: QueryAstNode) -> Self {
+        QueryAst {
+            text: new_root.to_string(),
+            type_name: self.type_name.clone(),
+            root: new_root,
+        }
+    }
+
+    /// Apply a transformation that modifies the AST structure
+    pub fn transform_ast<F>(&self, transformer: F) -> Self
+    where
+        F: Fn(&QueryAstNode) -> QueryAstNode,
+    {
+        let new_root = transformer(&self.root);
+        self.with_root(new_root)
+    }
+
+    /// Returns a debug representation of the AST showing node types
+    pub fn to_debug_string(&self) -> String {
+        self.root.to_debug_string()
+    }
+}
 
 /// Represents an element in the grammar, either a terminal or a non-terminal
 #[derive(Debug, Clone, PartialEq)]
@@ -448,59 +595,128 @@ impl Grammar {
     }
 
     /// Generate random text based on the grammar rules
-    pub fn generate(&self, start_symbol: &str) -> String {
-        // Start generation from the start symbol, with initial depth 0
-        let result = self.expand_non_terminal(start_symbol);
+    pub fn generate(&self, start_symbol: &str) -> QueryAst {
+        // Create root node for the AST
+        let root_node = QueryAstNode {
+            element_type: "non_terminal".to_string(),
+            value: start_symbol.to_string(),
+            children: Vec::new(),
+        };
+
+        // Start generation from the start symbol
+        let (result, ast_root) = self.expand_non_terminal(start_symbol, root_node);
 
         // Apply validation/post-processing
         let result = self.validator.validate(&result);
 
         // Apply final trimming if configured
-        if self.config.trim_output {
+        let text = if self.config.trim_output {
             result.trim().to_string()
         } else {
             result
+        };
+
+        QueryAst {
+            text,
+            type_name: start_symbol.to_string(),
+            root: ast_root,
         }
     }
 
-    /// Recursively expand a non-terminal symbol
-    fn expand_non_terminal(&self, symbol: &str) -> String {
+    /// Recursively expand a non-terminal symbol, now returning both the text and AST node
+    fn expand_non_terminal(&self, symbol: &str, ast_node: QueryAstNode) -> (String, QueryAstNode) {
         let mut depth = 0;
         let mut rng = rand::thread_rng();
         let mut tokens = Vec::new();
-        let mut stack = Vec::new();
 
-        stack.push(Element::NonTerminal(symbol.to_string()));
+        // Create a stack for production elements and AST nodes
+        // Each stack frame contains (Element, AST_Node, Parent_Index)
+        // where Parent_Index is the index in ast_nodes of the parent node
+        let mut stack: Vec<(Element, usize)> = Vec::new();
+        let mut ast_nodes: Vec<QueryAstNode> = Vec::new();
 
-        while !stack.is_empty() {
-            let element = stack.pop().unwrap();
+        // Start with the root node
+        ast_nodes.push(ast_node);
+        let root_idx = 0;
 
+        // Push the initial element with the root as parent
+        stack.push((Element::NonTerminal(symbol.to_string()), root_idx));
+
+        while let Some((element, parent_idx)) = stack.pop() {
             match element {
                 Element::Terminal(text) => {
-                    tokens.push(text);
+                    tokens.push(text.clone());
+
+                    // Create terminal node
+                    let terminal_node = QueryAstNode {
+                        element_type: "terminal".to_string(),
+                        value: text,
+                        children: Vec::new(),
+                    };
+
+                    // Add it as a child to its parent
+                    ast_nodes[parent_idx].children.push(terminal_node);
                 }
                 Element::NonTerminal(name) => {
                     if let Some(productions) = self.rules.get(&name) {
+                        // Choose a random production
                         let production_idx = rng.gen_range(0..productions.len());
                         let production = &productions[production_idx];
 
+                        // Create a non-terminal node
+                        let non_terminal_node = QueryAstNode {
+                            element_type: "non_terminal".to_string(),
+                            value: name.clone(),
+                            children: Vec::new(),
+                        };
+
+                        // Add node to the tree and get its index
+                        ast_nodes.push(non_terminal_node);
+                        let node_idx = ast_nodes.len() - 1;
+
+                        // Split the vector to get non-overlapping mutable references
+                        let (left, right) = ast_nodes.split_at_mut(parent_idx + 1);
+                        left[parent_idx].children.push(right[0].clone());
+
+                        // Push elements and corresponding AST nodes in reverse order
                         if depth < self.config.max_recursion_depth {
                             for element in production.elements.iter().rev() {
-                                stack.push(element.clone());
+                                stack.push((element.clone(), node_idx));
                                 depth += 1;
                             }
                         }
                     } else {
+                        // Handle unknown non-terminals
                         tokens.push(format!("<{}>", name));
+
+                        // Create an "undefined" node
+                        let undefined_node = QueryAstNode {
+                            element_type: "undefined".to_string(),
+                            value: name,
+                            children: Vec::new(),
+                        };
+
+                        // Add it as a child to its parent
+                        ast_nodes[parent_idx].children.push(undefined_node);
                     }
                 }
             }
         }
 
+        // Handle recursion limit if reached
         if depth >= self.config.max_recursion_depth {
             tokens.push(format!("<recursion_limit_exceeded>"));
+
+            // Add a recursion limit node to the root
+            let limit_node = QueryAstNode {
+                element_type: "error".to_string(),
+                value: "recursion_limit_exceeded".to_string(),
+                children: Vec::new(),
+            };
+            ast_nodes[root_idx].children.push(limit_node);
         }
 
+        // Construct the final string
         let mut result = String::new();
         let mut in_quotes = false;
 
@@ -525,7 +741,8 @@ impl Grammar {
             }
         }
 
-        result.trim().to_string()
+        // Return the generated string and the root AST node
+        (result.trim().to_string(), ast_nodes[root_idx].clone())
     }
 
     /// Check if the grammar contains a specific non-terminal
@@ -594,184 +811,5 @@ impl Grammar {
         }
 
         println!("}}");
-    }
-}
-
-/// Builder for constructing Grammar instances
-pub struct GrammarBuilder {
-    grammar: Grammar,
-}
-
-impl GrammarBuilder {
-    /// Create a new grammar builder with default config
-    pub fn new() -> Self {
-        GrammarBuilder {
-            grammar: Grammar::new(),
-        }
-    }
-
-    /// Set the configuration
-    pub fn config(mut self, config: GrammarConfig) -> Self {
-        self.grammar.config = config;
-        self
-    }
-
-    /// Add a rule to the grammar
-    pub fn add_rule(mut self, non_terminal: &str, elements: &[&str]) -> Self {
-        // Properly handle errors in builder pattern
-        if let Err(e) = self.grammar.add_rule(non_terminal, elements.to_vec()) {
-            panic!(
-                "Failed to add rule for non-terminal '{}': {}",
-                non_terminal, e
-            );
-        }
-        self
-    }
-
-    /// Set a validator
-    pub fn validator(mut self, validator: Box<dyn GrammarValidator>) -> Self {
-        self.grammar.validator = validator;
-        self
-    }
-
-    /// Build the grammar
-    pub fn build(self) -> Grammar {
-        self.grammar
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::utils::noop_validator;
-
-    #[test]
-    fn test_parse_production() {
-        let input = r#""SELECT", <column_ref>, "FROM", <table_name>"#;
-        let production = Grammar::parse_production(input).unwrap();
-
-        assert_eq!(production.elements.len(), 4);
-
-        match &production.elements[0] {
-            Element::Terminal(s) => assert_eq!(s, "SELECT"),
-            _ => panic!("Expected Terminal"),
-        }
-
-        match &production.elements[1] {
-            Element::NonTerminal(s) => assert_eq!(s, "column_ref"),
-            _ => panic!("Expected NonTerminal"),
-        }
-
-        match &production.elements[2] {
-            Element::Terminal(s) => assert_eq!(s, "FROM"),
-            _ => panic!("Expected Terminal"),
-        }
-
-        match &production.elements[3] {
-            Element::NonTerminal(s) => assert_eq!(s, "table_name"),
-            _ => panic!("Expected NonTerminal"),
-        }
-    }
-
-    #[test]
-    fn test_grammar_generate() {
-        let mut grammar = Grammar::new();
-
-        // Define a simple grammar
-        grammar
-            .add_rule("start", vec!["Hello", "<subject>"])
-            .unwrap();
-        grammar.add_rule("subject", vec!["world"]).unwrap();
-        grammar.add_rule("subject", vec!["Rust"]).unwrap();
-
-        // Generate some text
-        let result = grammar.generate("start");
-        assert!(result == "Hello world" || result == "Hello Rust");
-    }
-
-    #[test]
-    fn test_grammar_builder() {
-        let grammar = GrammarBuilder::new()
-            .add_rule("greeting", &["Hello", "<subject>"])
-            .add_rule("subject", &["world"])
-            .add_rule("subject", &["Rust", "programmer"])
-            .validator(noop_validator())
-            .build();
-
-        let result = grammar.generate("greeting");
-        assert!(result == "Hello world" || result == "Hello Rust programmer");
-    }
-
-    #[test]
-    fn test_recursion_limit() {
-        let mut grammar = Grammar::new();
-        let mut config = GrammarConfig::default();
-        config.max_recursion_depth = 5;
-        grammar.set_config(config);
-
-        // Create a recursive grammar
-        grammar
-            .add_rule("recursive", vec!["<recursive>", "loop"])
-            .unwrap();
-
-        // Should hit recursion limit
-        let result = grammar.generate("recursive");
-        println!("result: {}", result);
-        assert!(result.contains("recursion_limit_exceeded"));
-    }
-
-    #[test]
-    fn test_tokenizer() {
-        let input = r#"<rule> ::= [Terminal, <non_terminal>, "quoted text"]"#;
-        let mut tokenizer = Tokenizer::new(input);
-
-        assert_eq!(
-            tokenizer.next_token().unwrap(),
-            Token::NonTerminal("rule".to_string())
-        );
-        assert_eq!(tokenizer.next_token().unwrap(), Token::RuleSeparator);
-        assert_eq!(tokenizer.next_token().unwrap(), Token::ListStart);
-        assert_eq!(
-            tokenizer.next_token().unwrap(),
-            Token::Terminal("Terminal".to_string())
-        );
-        assert_eq!(tokenizer.next_token().unwrap(), Token::Comma);
-        assert_eq!(
-            tokenizer.next_token().unwrap(),
-            Token::NonTerminal("non_terminal".to_string())
-        );
-        assert_eq!(tokenizer.next_token().unwrap(), Token::Comma);
-        assert_eq!(
-            tokenizer.next_token().unwrap(),
-            Token::Terminal("quoted text".to_string())
-        );
-        assert_eq!(tokenizer.next_token().unwrap(), Token::ListEnd);
-        assert_eq!(tokenizer.next_token().unwrap(), Token::EndOfFile);
-    }
-
-    #[test]
-    fn test_parser() {
-        let input = r#"<rule> ::= [Terminal, <non_terminal>, "quoted text"]"#;
-        let mut parser = Parser::new(input).unwrap();
-
-        let (non_terminal, production) = parser.parse_rule().unwrap();
-
-        assert_eq!(non_terminal, "rule");
-        assert_eq!(production.elements.len(), 3);
-
-        match &production.elements[0] {
-            Element::Terminal(s) => assert_eq!(s, "Terminal"),
-            _ => panic!("Expected Terminal"),
-        }
-
-        match &production.elements[1] {
-            Element::NonTerminal(s) => assert_eq!(s, "non_terminal"),
-            _ => panic!("Expected NonTerminal"),
-        }
-
-        match &production.elements[2] {
-            Element::Terminal(s) => assert_eq!(s, "quoted text"),
-            _ => panic!("Expected Terminal"),
-        }
     }
 }

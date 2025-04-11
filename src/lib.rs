@@ -23,9 +23,11 @@
 
 pub mod common;
 pub mod grammar;
+pub mod schema;
 pub mod utils;
 
-pub use grammar::{Grammar, GrammarBuilder, GrammarConfig};
+pub use grammar::{Grammar, GrammarConfig};
+pub use schema::{Column, Schema, SqlGenerator, SqlGrammarExtension, SqlType, Table};
 pub use utils::{GrammarError, Result, SqlNullValidator};
 
 // Re-export common enums and structs

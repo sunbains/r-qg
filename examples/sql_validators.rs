@@ -22,13 +22,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("=== SQL Create Handling ===");
     for i in 1..=3 {
         let query = grammar.generate("create_table");
-        println!("{}. {}", i, query);
+        println!("{}. {}", i, query.text);
     }
 
     println!("=== SQL NULL Value Handling ===");
     for i in 1..=3 {
         let query = grammar.generate("query");
-        println!("{}. {}", i, query);
+        println!("{}. {}", i, query.text);
     }
 
     // 2. Demonstrate different SQL case formatting options
@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     for i in 1..=3 {
         let query = grammar.generate("query");
-        println!("{}. {}", i, query);
+        println!("{}. {}", i, query.text);
     }
 
     // 4. Demonstrate using the validator registry
@@ -69,7 +69,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         for i in 1..=3 {
             let query = grammar.generate("query");
-            println!("{}. {}", i, query);
+            println!("{}. {}", i, query.text);
         }
     }
 
@@ -83,14 +83,14 @@ fn test_case_formatting(grammar_path: &str) -> Result<(), Box<dyn Error>> {
         .with_validator(Box::new(SqlKeywordValidator::new(SqlCaseFormat::Uppercase)));
     println!("UPPERCASE keywords:");
     let query = uppercase_grammar.generate("query");
-    println!("{}", query);
+    println!("{}", query.text);
 
     // Test lowercase formatting
     let lowercase_grammar = Grammar::from_file(grammar_path)?
         .with_validator(Box::new(SqlKeywordValidator::new(SqlCaseFormat::Lowercase)));
     println!("\nlowercase keywords:");
     let query = lowercase_grammar.generate("query");
-    println!("{}", query);
+    println!("{}", query.text);
 
     // Test capitalized formatting
     let capitalize_grammar = Grammar::from_file(grammar_path)?.with_validator(Box::new(
@@ -99,7 +99,7 @@ fn test_case_formatting(grammar_path: &str) -> Result<(), Box<dyn Error>> {
 
     println!("\nCapitalized keywords:");
     let query = capitalize_grammar.generate("query");
-    println!("{}", query);
+    println!("{}", query.text);
 
     Ok(())
 }

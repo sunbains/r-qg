@@ -1,28 +1,28 @@
-use grammar_gen::{Grammar, GrammarBuilder, GrammarConfig};
+use grammar_gen::{Grammar, GrammarConfig};
 use std::error::Error;
 
 /// Example of creating a custom grammar programmatically
 fn main() -> Result<(), Box<dyn Error>> {
-    // Example 1: Create a grammar programmatically using the builder
-    let grammar = GrammarBuilder::new()
-        .add_rule("sentence", &["<subject>", "<verb>", "<object>"])
-        .add_rule("subject", &["The", "<adjective>", "<noun>"])
-        .add_rule("subject", &["A", "<adjective>", "<noun>"])
-        .add_rule("adjective", &["quick"])
-        .add_rule("adjective", &["lazy"])
-        .add_rule("adjective", &["clever"])
-        .add_rule("noun", &["fox"])
-        .add_rule("noun", &["dog"])
-        .add_rule("noun", &["programmer"])
-        .add_rule("verb", &["jumps over"])
-        .add_rule("verb", &["runs around"])
-        .add_rule("verb", &["observes"])
-        .add_rule("object", &["the", "<adjective>", "<noun>"])
-        .build();
+    // Example 1: Create a grammar programmatically
+    let mut grammar = Grammar::new();
+    grammar.add_rule("sentence", vec!["<subject>", "<verb>", "<object>"])?;
+    grammar.add_rule("subject", vec!["The", "<adjective>", "<noun>"])?;
+    grammar.add_rule("subject", vec!["A", "<adjective>", "<noun>"])?;
+    grammar.add_rule("adjective", vec!["quick"])?;
+    grammar.add_rule("adjective", vec!["lazy"])?;
+    grammar.add_rule("adjective", vec!["clever"])?;
+    grammar.add_rule("noun", vec!["fox"])?;
+    grammar.add_rule("noun", vec!["dog"])?;
+    grammar.add_rule("noun", vec!["programmer"])?;
+    grammar.add_rule("verb", vec!["jumps over"])?;
+    grammar.add_rule("verb", vec!["runs around"])?;
+    grammar.add_rule("verb", vec!["observes"])?;
+    grammar.add_rule("object", vec!["the", "<adjective>", "<noun>"])?;
 
     println!("Generated sentences using builder approach:");
     for i in 1..=5 {
-        println!("{}. {}", i, grammar.generate("sentence"));
+        let result = grammar.generate("sentence");
+        println!("{}. {}", i, result.text);
     }
 
     // Example 2: Create a grammar manually
@@ -50,7 +50,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("\nGenerated greetings in different languages:");
     for i in 1..=5 {
-        println!("{}. {}", i, grammar.generate("greeting"));
+        let result = grammar.generate("greeting");
+        println!("{}. {}", i, result.text);
     }
 
     // Example 3: Create a more complex custom grammar
@@ -115,11 +116,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("\nGenerated code snippets:");
     for i in 1..=3 {
-        println!(
-            "Code Example {}:\n{}\n",
-            i,
-            code_grammar.generate("program")
-        );
+        let result = code_grammar.generate("program");
+        println!("{}. {}", i, result.text);
     }
 
     Ok(())

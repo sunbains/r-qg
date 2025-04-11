@@ -1,26 +1,26 @@
 use grammar_gen::utils::{GrammarValidator, ValidatorExt};
-use grammar_gen::GrammarBuilder;
+use grammar_gen::Grammar;
 use std::error::Error;
 
 /// Example of creating and using custom validators
 fn main() -> Result<(), Box<dyn Error>> {
     // Create a simple grammar
-    let grammar = GrammarBuilder::new()
-        .add_rule("expression", &["<term>", "+", "<expression>"])
-        .add_rule("expression", &["<term>"])
-        .add_rule("term", &["<factor>", "*", "<term>"])
-        .add_rule("term", &["<factor>"])
-        .add_rule("factor", &["(", "<expression>", ")"])
-        .add_rule("factor", &["<number>"])
-        .add_rule("number", &["1"])
-        .add_rule("number", &["2"])
-        .add_rule("number", &["3"])
-        .add_rule("expression", &["<number>"]) // Base case to terminate recursion
-        .build();
+    let mut grammar = Grammar::new();
+    grammar.add_rule("expression", vec!["<term>", "+", "<expression>"])?;
+    grammar.add_rule("expression", vec!["<term>"])?;
+    grammar.add_rule("term", vec!["<factor>", "*", "<term>"])?;
+    grammar.add_rule("term", vec!["<factor>"])?;
+    grammar.add_rule("factor", vec!["(", "<expression>", ")"])?;
+    grammar.add_rule("factor", vec!["<number>"])?;
+    grammar.add_rule("number", vec!["1"])?;
+    grammar.add_rule("number", vec!["2"])?;
+    grammar.add_rule("number", vec!["3"])?;
+    grammar.add_rule("expression", vec!["<number>"])?; // Base case to terminate recursion
 
     println!("=== Basic Grammar Output ===");
     for i in 1..=5 {
-        println!("{}. {}", i, grammar.generate("expression"));
+        let result = grammar.generate("expression");
+        println!("{}. {}", i, result.text);
     }
 
     // Create a custom ParenthesesValidator
@@ -37,7 +37,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("\n=== With Custom Validators ===");
     for i in 1..=5 {
-        println!("{}. {}", i, validated_grammar.generate("expression"));
+        let result = validated_grammar.generate("expression");
+        println!("{}. {}", i, result.text);
     }
 
     // Create and use a LatexValidator
@@ -46,7 +47,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("\n=== LaTeX Formula Output ===");
     for i in 1..=5 {
-        println!("{}. {}", i, latex_grammar.generate("expression"));
+        let result = latex_grammar.generate("expression");
+        println!("{}. {}", i, result.text);
     }
 
     Ok(())

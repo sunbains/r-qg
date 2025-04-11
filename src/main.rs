@@ -83,7 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for i in 0..count {
         let generated = grammar.generate(&start_symbol);
-        println!("{}. {}", i + 1, generated);
+        println!("{}. {}", i + 1, generated.text);
     }
 
     Ok(())

@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     for i in 1..=10 {
         let query = grammar.generate("query");
-        println!("{}. {}", i, query);
+        println!("{}. {}", i, query.text);
     }
 
     Ok(())

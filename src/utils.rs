@@ -1,3 +1,4 @@
+use serde_json;
 use std::fmt;
 use std::io;
 use std::sync::Arc;
@@ -8,6 +9,9 @@ use thiserror::Error;
 pub enum GrammarError {
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
+
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
 
     #[error("Parse error: {0}")]
     Parse(String),
