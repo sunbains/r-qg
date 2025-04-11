@@ -1,4 +1,3 @@
-// src/sql/schema.rs
 use rand::seq::SliceRandom;
 use rand::Rng;
 use serde::{Deserialize, Serialize};

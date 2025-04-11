@@ -118,8 +118,8 @@ fn test_grammar_config() {
 
     let result = grammar.generate("test");
 
-    // Without auto spacing, we should get "Helloworld" (no space)
-    assert_eq!(result.text, "Helloworld");
+    // Without auto spacing, we should get "Hello world" (with space)
+    assert_eq!(result.text, "Hello world");
 
     // Test with auto spacing
     let mut config = GrammarConfig::default();
