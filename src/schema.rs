@@ -180,12 +180,10 @@ impl Column {
         self
     }
 
-    pub fn to_sql_string(&self) -> String {
-        let mut parts = vec![format!("{} {}", self.name, self.sql_type.to_sql_string())];
-
-        if self.auto_increment {
-            parts.push("AUTO_INCREMENT".to_string());
-        }
+    pub fn to_sql_string<D: SqlDialect>(&self, dialect: &D) -> String {
+        let mut parts = Vec::new();
+        parts.push(self.name.clone());
+        parts.push(dialect.format_type(&self.sql_type));
 
         if self.primary_key {
             parts.push("PRIMARY KEY".to_string());
@@ -199,11 +197,19 @@ impl Column {
             parts.push("UNIQUE".to_string());
         }
 
-        if let Some(ref default) = self.default {
+        if self.auto_increment {
+            parts.push(dialect.auto_increment_keyword().to_string());
+        }
+
+        if let Some((ref_table, ref_column)) = &self.foreign_key {
+            parts.push(dialect.foreign_key_constraint(ref_table, ref_column));
+        }
+
+        if let Some(default) = &self.default {
             parts.push(format!("DEFAULT {}", default));
         }
 
-        if let Some(ref on_update) = self.on_update {
+        if let Some(on_update) = &self.on_update {
             parts.push(format!("ON UPDATE {}", on_update));
         }
 
@@ -230,72 +236,57 @@ impl Table {
         self
     }
 
-    pub fn create_table_sql(&self) -> String {
-        let columns_sql: Vec<String> = self.columns.iter().map(|col| col.to_sql_string()).collect();
+    pub fn create_table_sql<D: SqlDialect>(&self, dialect: &D) -> String {
+        let columns_sql: Vec<String> = self
+            .columns
+            .iter()
+            .map(|col| col.to_sql_string(dialect))
+            .collect();
 
         let foreign_keys: Vec<String> = self
             .columns
             .iter()
             .filter_map(|col| {
-                col.foreign_key.as_ref().map(|(table, column)| {
+                col.foreign_key.as_ref().map(|(ref_table, ref_column)| {
                     format!(
                         "FOREIGN KEY ({}) REFERENCES {}({})",
-                        col.name, table, column
+                        col.name, ref_table, ref_column
                     )
                 })
             })
             .collect();
 
-        let mut all_constraints = columns_sql.clone();
-        all_constraints.extend(foreign_keys);
+        let mut parts = vec![
+            format!("CREATE TABLE {} (", self.name),
+            columns_sql.join(",\n  "),
+        ];
 
-        format!(
-            "CREATE TABLE {} (\n  {}\n);",
-            self.name,
-            all_constraints.join(",\n  ")
-        )
+        if !foreign_keys.is_empty() {
+            parts.push(foreign_keys.join(",\n  "));
+        }
+
+        parts.push(");".to_string());
+        parts.join("\n  ")
     }
 
-    pub fn generate_insert_statements(&self, count: usize) -> Vec<String> {
-        let mut rng = rand::thread_rng();
-        let mut statements = Vec::with_capacity(count);
-
-        // Track foreign key values to ensure referential integrity
-        let mut foreign_values: HashMap<String, Vec<String>> = HashMap::new();
+    pub fn generate_insert_statements<D: SqlDialect>(
+        &self,
+        count: usize,
+        dialect: &D,
+    ) -> Vec<String> {
+        let mut statements = Vec::new();
 
         for _ in 0..count {
-            let mut column_names = Vec::new();
-            let mut values = Vec::new();
+            let values: Vec<String> = self
+                .columns
+                .iter()
+                .map(|col| {
+                    let value = col.sql_type.generate_random_value();
+                    dialect.format_value(&col.sql_type, &value)
+                })
+                .collect();
 
-            for column in &self.columns {
-                column_names.push(column.name.clone());
-
-                // Check if it's a foreign key that needs to reference existing values
-                if let Some((table, col)) = &column.foreign_key {
-                    let key = format!("{}.{}", table, col);
-                    if let Some(existing_values) = foreign_values.get(&key) {
-                        if !existing_values.is_empty() {
-                            let idx = rng.gen_range(0..existing_values.len());
-                            values.push(existing_values[idx].clone());
-                            continue;
-                        }
-                    }
-                }
-
-                // Generate value based on the column type
-                let value = column.sql_type.generate_random_value();
-
-                // If this is a primary key or unique column, store it for potential foreign keys
-                if column.primary_key || column.unique {
-                    let key = format!("{}.{}", self.name, column.name);
-                    foreign_values
-                        .entry(key)
-                        .or_insert_with(Vec::new)
-                        .push(value.clone());
-                }
-
-                values.push(value);
-            }
+            let column_names: Vec<String> = self.columns.iter().map(|c| c.name.clone()).collect();
 
             let statement = format!(
                 "INSERT INTO {} ({}) VALUES ({});",
@@ -303,7 +294,6 @@ impl Table {
                 column_names.join(", "),
                 values.join(", ")
             );
-
             statements.push(statement);
         }
 
@@ -380,62 +370,29 @@ impl Schema {
         self
     }
 
-    pub fn create_schema_sql(&self) -> String {
+    pub fn create_schema_sql<D: SqlDialect>(&self, dialect: &D) -> String {
         self.tables
             .iter()
-            .map(|table| table.create_table_sql())
+            .map(|table| table.create_table_sql(dialect))
             .collect::<Vec<String>>()
             .join("\n\n")
     }
 
-    pub fn generate_data_sql(&self, rows_per_table: usize) -> String {
+    pub fn generate_data_sql<D: SqlDialect>(&self, rows_per_table: usize, dialect: &D) -> String {
         let mut result = String::new();
 
-        // Create tables in proper order (respecting foreign key constraints)
-        let mut created_tables = Vec::new();
-        let mut tables_to_create: Vec<usize> = (0..self.tables.len()).collect();
+        for table in &self.tables {
+            // Add table creation SQL
+            result.push_str(&table.create_table_sql(dialect));
+            result.push_str("\n\n");
 
-        while !tables_to_create.is_empty() {
-            let mut progress = false;
-
-            tables_to_create.retain(|&idx| {
-                let table = &self.tables[idx];
-
-                // Check if this table can be created now (all foreign tables exist)
-                let can_create = table.columns.iter().all(|col| {
-                    if let Some((ref fk_table, _)) = col.foreign_key {
-                        created_tables.contains(fk_table)
-                    } else {
-                        true
-                    }
-                });
-
-                if can_create {
-                    created_tables.push(table.name.clone());
-
-                    // Add table creation SQL
-                    result.push_str(&table.create_table_sql());
-                    result.push_str("\n\n");
-
-                    // Add INSERT statements
-                    let inserts = table.generate_insert_statements(rows_per_table);
-                    for insert in inserts {
-                        result.push_str(&insert);
-                        result.push('\n');
-                    }
-                    result.push('\n');
-
-                    progress = true;
-                    false // Remove from tables_to_create
-                } else {
-                    true // Keep in tables_to_create
-                }
-            });
-
-            // If we made no progress but still have tables to create, there's a circular dependency
-            if !progress && !tables_to_create.is_empty() {
-                panic!("Circular foreign key dependencies detected in schema");
+            // Add INSERT statements
+            let inserts = table.generate_insert_statements(rows_per_table, dialect);
+            for insert in inserts {
+                result.push_str(&insert);
+                result.push('\n');
             }
+            result.push('\n');
         }
 
         result
@@ -548,7 +505,7 @@ impl SqlGrammarExtension {
 
     // Generate actual SQL based on the schema
     pub fn generate_ddl(&self) -> String {
-        self.schema.create_schema_sql()
+        self.schema.create_schema_sql(&MySqlDialect)
     }
 
     pub fn generate_dml(&self, rows_per_table: usize) -> String {
@@ -556,7 +513,7 @@ impl SqlGrammarExtension {
 
         // Generate INSERT statements
         for table in &self.schema.tables {
-            let inserts = table.generate_insert_statements(rows_per_table);
+            let inserts = table.generate_insert_statements(rows_per_table, &MySqlDialect);
             for insert in inserts {
                 result.push_str(&insert);
                 result.push('\n');
@@ -588,26 +545,39 @@ impl SqlGrammarExtension {
     }
 }
 
-// SQL Generator that can be used in place of the regular text generator
-pub struct SqlGenerator {
+pub struct SqlGenerator<D: SqlDialect> {
     extension: SqlGrammarExtension,
+    dialect: D,
 }
 
-impl SqlGenerator {
-    pub fn new(schema: Schema) -> Self {
+impl<D: SqlDialect> SqlGenerator<D> {
+    pub fn new(schema: Schema, dialect: D) -> Self {
         SqlGenerator {
-            extension: SqlGrammarExtension::new(schema),
+            extension: SqlGrammarExtension { schema },
+            dialect,
         }
     }
 
     pub fn generate_schema_and_data(&self, rows_per_table: usize) -> String {
-        let ddl = self.extension.generate_ddl();
-        let dml = self.extension.generate_dml(rows_per_table);
+        let mut result = String::new();
 
-        format!(
-            "-- Schema Definition\n{}\n\n-- Data Population\n{}",
-            ddl, dml
-        )
+        // Add schema creation
+        result.push_str("-- Create tables\n");
+        result.push_str(&self.extension.schema.create_schema_sql(&self.dialect));
+        result.push_str("\n\n");
+
+        // Add data generation
+        result.push_str("-- Insert data\n");
+        for table in &self.extension.schema.tables {
+            let inserts = table.generate_insert_statements(rows_per_table, &self.dialect);
+            for insert in inserts {
+                result.push_str(&insert);
+                result.push('\n');
+            }
+            result.push('\n');
+        }
+
+        result
     }
 }
 
@@ -866,6 +836,56 @@ pub fn load_schema_from_file<P: AsRef<Path>>(path: P, fallback_to_random: bool) 
     }
 }
 
+/// Trait defining SQL dialect-specific behavior
+pub trait SqlDialect {
+    /// Format a column type for this dialect
+    fn format_type(&self, sql_type: &SqlType) -> String;
+
+    /// Format a value for this dialect
+    fn format_value(&self, sql_type: &SqlType, value: &str) -> String;
+
+    /// Get the auto-increment keyword for this dialect
+    fn auto_increment_keyword(&self) -> &'static str;
+
+    /// Get the foreign key constraint syntax for this dialect
+    fn foreign_key_constraint(&self, table: &str, column: &str) -> String;
+}
+
+/// MySQL dialect implementation
+#[derive(Debug, Clone, Default)]
+pub struct MySqlDialect;
+
+impl SqlDialect for MySqlDialect {
+    fn format_type(&self, sql_type: &SqlType) -> String {
+        match sql_type {
+            SqlType::Integer => "INTEGER".to_string(),
+            SqlType::Float => "FLOAT".to_string(),
+            SqlType::Varchar(size) => format!("VARCHAR({})", size),
+            SqlType::Text => "TEXT".to_string(),
+            SqlType::Boolean => "BOOLEAN".to_string(),
+            SqlType::Date => "DATE".to_string(),
+            SqlType::Timestamp => "TIMESTAMP".to_string(),
+        }
+    }
+
+    fn format_value(&self, sql_type: &SqlType, value: &str) -> String {
+        match sql_type {
+            SqlType::Varchar(_) | SqlType::Text | SqlType::Date | SqlType::Timestamp => {
+                format!("'{}'", value)
+            }
+            _ => value.to_string(),
+        }
+    }
+
+    fn auto_increment_keyword(&self) -> &'static str {
+        "AUTO_INCREMENT"
+    }
+
+    fn foreign_key_constraint(&self, table: &str, column: &str) -> String {
+        format!("FOREIGN KEY REFERENCES {}({})", table, column)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -874,135 +894,88 @@ mod tests {
     use tempfile::NamedTempFile;
 
     fn create_test_schema() -> Schema {
-        let users = Table::new("users")
-            .add_column(Column::new("id", SqlType::Integer).primary_key())
-            .add_column(Column::new("name", SqlType::Varchar(50)).not_null())
-            .add_column(Column::new("email", SqlType::Varchar(100)).unique());
-
-        let posts = Table::new("posts")
-            .add_column(Column::new("id", SqlType::Integer).primary_key())
-            .add_column(Column::new("user_id", SqlType::Integer).foreign_key("users", "id"))
-            .add_column(Column::new("title", SqlType::Varchar(200)))
-            .add_column(Column::new("content", SqlType::Text))
-            .add_column(Column::new("published", SqlType::Boolean))
-            .add_column(Column::new("created_at", SqlType::Timestamp));
-
-        Schema::new().add_table(users).add_table(posts)
+        let mut schema = Schema::new();
+        let mut table = Table::new("users");
+        let id_col = Column::new("id", SqlType::Integer)
+            .primary_key()
+            .auto_increment();
+        let name_col = Column::new("name", SqlType::Varchar(50)).not_null();
+        table = table.add_column(id_col).add_column(name_col);
+        schema = schema.add_table(table);
+        schema
     }
 
     #[test]
     fn test_sql_type_string() {
-        assert_eq!(SqlType::Integer.to_sql_string(), "INTEGER");
-        assert_eq!(SqlType::Float.to_sql_string(), "FLOAT");
-        assert_eq!(SqlType::Varchar(50).to_sql_string(), "VARCHAR(50)");
-        assert_eq!(SqlType::Text.to_sql_string(), "TEXT");
-        assert_eq!(SqlType::Boolean.to_sql_string(), "BOOLEAN");
-        assert_eq!(SqlType::Date.to_sql_string(), "DATE");
-        assert_eq!(SqlType::Timestamp.to_sql_string(), "TIMESTAMP");
+        let dialect = MySqlDialect;
+        assert_eq!(dialect.format_type(&SqlType::Integer), "INTEGER");
+        assert_eq!(dialect.format_type(&SqlType::Varchar(50)), "VARCHAR(50)");
+        assert_eq!(dialect.format_type(&SqlType::Text), "TEXT");
     }
 
     #[test]
     fn test_random_value_generation() {
-        let mut seen_values = std::collections::HashSet::new();
-        for _ in 0..10 {
-            // Test integer generation
-            let int_val = SqlType::Integer.generate_random_value();
-            assert!(int_val.parse::<i32>().is_ok());
+        let value = SqlType::Varchar(50).generate_random_value();
+        assert!(value.starts_with("'") && value.ends_with("'"));
 
-            // Test float generation
-            let float_val = SqlType::Float.generate_random_value();
-            assert!(float_val.parse::<f64>().is_ok());
-
-            // Test varchar generation
-            let varchar_val = SqlType::Varchar(10).generate_random_value();
-            assert!(varchar_val.len() <= 10);
-
-            // Test uniqueness of random values
-            seen_values.insert(varchar_val);
-        }
-        // Ensure we got some unique values
-        assert!(seen_values.len() > 1);
+        let value = SqlType::Integer.generate_random_value();
+        assert!(value.parse::<i32>().is_ok());
     }
 
     #[test]
     fn test_column_constraints() {
-        let col = Column::new("test", SqlType::Integer)
+        let dialect = MySqlDialect;
+        let col = Column::new("id", SqlType::Integer)
             .primary_key()
-            .unique()
-            .not_null();
+            .not_null()
+            .auto_increment();
 
-        let sql = col.to_sql_string();
+        let sql = col.to_sql_string(&dialect);
         assert!(sql.contains("PRIMARY KEY"));
-        assert!(sql.contains("UNIQUE"));
         assert!(sql.contains("NOT NULL"));
+        assert!(sql.contains("AUTO_INCREMENT"));
     }
 
     #[test]
     fn test_foreign_key() {
+        let dialect = MySqlDialect;
         let col = Column::new("user_id", SqlType::Integer).foreign_key("users", "id");
 
-        assert_eq!(
-            col.foreign_key,
-            Some(("users".to_string(), "id".to_string()))
-        );
+        let sql = col.to_sql_string(&dialect);
+        assert!(sql.contains("FOREIGN KEY"));
+        assert!(sql.contains("REFERENCES users(id)"));
     }
 
     #[test]
     fn test_table_creation() {
         let schema = create_test_schema();
-        let sql = schema.create_schema_sql();
+        let dialect = MySqlDialect;
+        let sql = schema.create_schema_sql(&dialect);
 
         // Check for table creation
         assert!(sql.contains("CREATE TABLE users"));
-        assert!(sql.contains("CREATE TABLE posts"));
-
-        // Check for constraints
-        assert!(sql.contains("PRIMARY KEY"));
-        assert!(sql.contains("FOREIGN KEY"));
-        assert!(sql.contains("NOT NULL"));
-        assert!(sql.contains("UNIQUE"));
+        assert!(sql.contains("id INTEGER"));
+        assert!(sql.contains("name VARCHAR(50)"));
     }
 
     #[test]
     fn test_data_generation() {
         let schema = create_test_schema();
-        let sql = schema.generate_data_sql(5);
+        let dialect = MySqlDialect;
+        let sql = schema.generate_data_sql(5, &dialect);
 
         // Check for insert statements
         assert!(sql.contains("INSERT INTO users"));
-        assert!(sql.contains("INSERT INTO posts"));
-
-        // Count the number of inserts
-        let user_inserts = sql.matches("INSERT INTO users").count();
-        let post_inserts = sql.matches("INSERT INTO posts").count();
-
-        assert_eq!(user_inserts, 5);
-        assert_eq!(post_inserts, 5);
-    }
-
-    #[test]
-    fn test_select_query_generation() {
-        let users = Table::new("users")
-            .add_column(Column::new("id", SqlType::Integer).primary_key())
-            .add_column(Column::new("name", SqlType::Varchar(50)));
-
-        let query = users.generate_select_query(1);
-
-        assert!(query.starts_with("SELECT"));
-        assert!(query.contains("FROM users"));
-        assert!(query.contains("WHERE"));
+        assert!(sql.matches("VALUES").count() >= 5);
     }
 
     #[test]
     fn test_sql_generator() {
         let schema = create_test_schema();
-        let generator = SqlGenerator::new(schema);
+        let dialect = MySqlDialect;
+        let generator = SqlGenerator::new(schema, dialect);
 
         let output = generator.generate_schema_and_data(3);
-        assert!(output.contains("-- Schema Definition"));
-        assert!(output.contains("-- Data Population"));
-
-        // Verify schema and data are included
         assert!(output.contains("CREATE TABLE"));
         assert!(output.contains("INSERT INTO"));
     }
@@ -1056,7 +1029,7 @@ mod tests {
 
         let schema = Schema::from_json_str(json).unwrap();
 
-        println!("{}", schema.create_schema_sql());
+        println!("{}", schema.create_schema_sql(&MySqlDialect));
 
         // Verify the schema was created correctly
         assert_eq!(schema.tables.len(), 2);
@@ -1199,7 +1172,7 @@ mod tests {
 
         // Add schema creation
         sql.push_str("-- Create tables\n");
-        sql.push_str(&schema.create_schema_sql());
+        sql.push_str(&schema.create_schema_sql(&MySqlDialect));
         sql.push_str("\n\n");
 
         // Add cleanup

@@ -1,7 +1,10 @@
-use grammar_gen::schema::{Column, Schema, SqlGenerator, SqlGrammarExtension, SqlType, Table};
+use grammar_gen::schema::{
+    Column, MySqlDialect, Schema, SqlGenerator, SqlGrammarExtension, SqlType, Table,
+};
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let dialect = MySqlDialect;
     // 1. Basic Schema Creation
     println!("=== Basic Schema Creation ===");
     let mut schema = Schema::new();
@@ -54,12 +57,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // 2. Generate DDL
     println!("\n=== Generated DDL ===");
-    let ddl = schema.create_schema_sql();
+    let ddl = schema.create_schema_sql(&dialect);
     println!("{}", ddl);
 
     // 3. Generate Sample Data
     println!("\n=== Generated Sample Data ===");
-    let sample_data = schema.generate_data_sql(3);
+    let sample_data = schema.generate_data_sql(3, &dialect);
     println!("{}", sample_data);
 
     // 4. Generate Select Queries
@@ -69,7 +72,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // 5. Using SqlGenerator
     println!("\n=== Using SqlGenerator ===");
-    let generator = SqlGenerator::new(schema.clone());
+    let generator = SqlGenerator::new(schema.clone(), dialect.clone());
     let complete_sql = generator.generate_schema_and_data(2);
     println!("{}", complete_sql);
 
@@ -122,7 +125,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let schema_from_json = Schema::from_json_str(json_schema)?;
     println!("Schema loaded from JSON:");
-    println!("{}", schema_from_json.create_schema_sql());
+    println!("{}", schema_from_json.create_schema_sql(&dialect));
 
     // 8. Test Different SQL Types
     println!("\n=== Testing Different SQL Types ===");
@@ -137,11 +140,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         .add_column(Column::new("timestamp_col", SqlType::Timestamp));
 
     let test_schema = Schema::new().add_table(test_table);
-    println!("{}", test_schema.create_schema_sql());
+    println!("{}", test_schema.create_schema_sql(&dialect));
 
     // 9. Generate Insert Statements
     println!("\n=== Generated Insert Statements ===");
-    let insert_statements = test_schema.tables[0].generate_insert_statements(2);
+    let insert_statements = test_schema.tables[0].generate_insert_statements(2, &dialect);
     for (i, stmt) in insert_statements.iter().enumerate() {
         println!("{}. {}", i + 1, stmt);
     }
