@@ -43,9 +43,10 @@ impl SqlType {
             SqlType::Varchar(size) => {
                 let chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz".chars().collect();
                 let length = rng.gen_range(1..*size.min(&20));
-                (0..length)
+                let value = (0..length)
                     .map(|_| chars[rng.gen_range(0..chars.len())])
-                    .collect::<String>()
+                    .collect::<String>();
+                format!("'{}'", value)
             }
             SqlType::Text => {
                 let words = [
@@ -58,10 +59,11 @@ impl SqlType {
                     "adipiscing",
                 ];
                 let word_count = rng.gen_range(3..10);
-                (0..word_count)
+                let value = (0..word_count)
                     .map(|_| words[rng.gen_range(0..words.len())])
                     .collect::<Vec<&str>>()
-                    .join(" ")
+                    .join(" ");
+                format!("'{}'", value)
             }
             SqlType::Boolean => if rng.gen_bool(0.5) { "TRUE" } else { "FALSE" }.to_string(),
             SqlType::Date => {
@@ -76,7 +78,7 @@ impl SqlType {
                 let minute = rng.gen_range(0..60);
                 let second = rng.gen_range(0..60);
                 format!(
-                    "{} {:02}:{:02}:{:02}",
+                    "'{} {:02}:{:02}:{:02}'",
                     date.trim_matches('\''),
                     hour,
                     minute,
